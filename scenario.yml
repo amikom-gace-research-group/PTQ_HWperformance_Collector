@@ -1,0 +1,12 @@
+jnano_trt:
+  start: 250
+  stop: 1500
+  stage: 50
+jnano_tflite:
+  start: 30
+  stop: 780
+  stage: 30
+rasp_tflite:
+  start: 10
+  stop: 510
+  stage: 20

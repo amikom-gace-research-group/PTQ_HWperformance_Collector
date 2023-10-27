@@ -1,0 +1,11 @@
+colored==1.4.4
+jetson-stats==4.2.3
+keras==2.7.0
+pandas==1.1.5
+Pillow==8.4.0
+polygraphy==0.49.0
+protobuf==3.14.0
+psutil==5.9.5
+PyYAML==3.12
+scipy==0.19.1
+silence-tensorflow==1.2.1
