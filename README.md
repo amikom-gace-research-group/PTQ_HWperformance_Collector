@@ -33,9 +33,9 @@ sudo pip install tensorflow
 Active the cgroup control
 ```shell
 sudo cgcreate -g memory:<cgroup_name>
-sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/GarudaLimit/memory.limit_in_bytes'
-sudo su -c 'echo 10 > /sys/fs/cgroup/memory/GarudaLimit/memory.swappiness'
-sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/GarudaLimit/memory.memsw.limit_in_bytes'
+sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/<cgroup_name>/memory.limit_in_bytes'
+sudo su -c 'echo 10 > /sys/fs/cgroup/memory/<cgroup_name>/memory.swappiness'
+sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/<cgroup_name>/memory.memsw.limit_in_bytes'
 ```
 
 ## How it works ?
