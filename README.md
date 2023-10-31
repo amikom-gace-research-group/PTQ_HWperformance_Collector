@@ -1,6 +1,7 @@
 # DL Performance Collector
 
 Collecting Latency, Memory RSS, PSS, USS, and CPU as well as the power comsumption while deep learning infer the input. GPU is included for Jetson Devices
+(Still in Dev Mode)
 
 ## Pre-requirements
 
