@@ -12,6 +12,9 @@ sudo apt-get update
 # sysstat
 sudo apt install sysstat
 
+# cgroup-tools
+sudo apt install cgroup-tools
+
 # depedencies
 sudo pip install -r requirements_<device_label/>.txt
 
@@ -25,6 +28,14 @@ sudo pip3 install --verbose tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl
 
 # install tensorflow for Raspberry Pi 4B (64-bit)
 sudo pip install tensorflow
+```
+
+Active the cgroup control
+```shell
+sudo cgcreate -g memory:<cgroup_name>
+sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/GarudaLimit/memory.limit_in_bytes'
+sudo su -c 'echo 10 > /sys/fs/cgroup/memory/GarudaLimit/memory.swappiness'
+sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/GarudaLimit/memory.memsw.limit_in_bytes'
 ```
 
 ## How it works ?
