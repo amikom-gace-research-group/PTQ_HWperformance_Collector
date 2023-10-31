@@ -3,6 +3,14 @@
 Collecting Latency, Memory RSS, PSS, USS, and CPU as well as the power comsumption while deep learning infer the input. GPU is included for Jetson Devices
 (Still in Dev Mode)
 
+## DL Application Properties
+
+Flower classification. Trained from Oxford Flower 102 dataset.
+
+## DL models Zoo
+
+Recently, provided the DL model in TFLite and TensorRT format
+
 ## Pre-requirements
 
 Install measurement application
