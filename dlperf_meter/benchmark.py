@@ -166,9 +166,9 @@ class GetLatency:
         
 def main_tflite(model, type):
     setup = GetLatency(graph_path=model, img='latency_meter/assets/flower.jpg')
-    lat, mem, cpu = setup.tflite_benchmark(type)
+    lat, mem, cpu, power = setup.tflite_benchmark(type)
 
-    res = [round(lat, 2), round(float(cpu), 2), mem]
+    res = [round(lat, 2), round(float(cpu), 2), mem, power]
 
     return res
 
