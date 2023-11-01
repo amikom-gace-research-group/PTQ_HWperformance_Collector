@@ -64,3 +64,19 @@ options:
   --cgroup_name CGROUP_NAME
                         cgroup name named in cgroup settings
 ```
+
+## Test the benchmark ?
+Call `benchmark.py` in `dlpref_meter` folder
+
+```
+usage: benchmark.py [-h] --model MODEL --type TYPE [--iteration ITERATION]
+                    --passwd PASSWD
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --model MODEL         Path of the detection model
+  --type TYPE           device types
+  --iteration ITERATION
+                        how many model runs (auto add warmup once)
+  --passwd PASSWD       user password
+```
