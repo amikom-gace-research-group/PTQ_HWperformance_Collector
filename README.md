@@ -26,9 +26,6 @@ sudo apt install sysstat
 # cgroup-tools
 sudo apt install cgroup-tools
 
-# ina219
-sudo pip3 install pi-ina219
-
 # depedencies
 sudo pip install -r requirements_<device_label/>.txt
 
@@ -39,9 +36,6 @@ sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
 sudo pip3 install --verbose 'protobuf<4' 'Cython<3'
 sudo wget --no-check-certificate https://developer.download.nvidia.com/compute/redist/jp/v461/tensorflow/tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl
 sudo pip3 install --verbose tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl
-
-# install tensorflow for Raspberry Pi 4B (64-bit)
-sudo pip install tensorflow
 ```
 
 Active the cgroup control
