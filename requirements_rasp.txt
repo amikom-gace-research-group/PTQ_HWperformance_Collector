@@ -6,3 +6,4 @@ psutil==5.9.5
 PyYAML==3.12
 scipy==0.19.1
 silence-tensorflow==1.2.1
+tensorflow
