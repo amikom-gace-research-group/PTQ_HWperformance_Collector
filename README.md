@@ -26,6 +26,9 @@ sudo apt install sysstat
 # cgroup-tools
 sudo apt install cgroup-tools
 
+# ina219
+sudo pip3 install pi-ina219
+
 # depedencies
 sudo pip install -r requirements_<device_label/>.txt
 
