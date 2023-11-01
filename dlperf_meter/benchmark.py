@@ -203,7 +203,7 @@ class GetLatency:
 ### RUN CODE FUNC ###
         
 def main_tflite(model, type):
-    setup = GetLatency(graph_path=model, img='latency_meter/assets/flower.jpg')
+    setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
     lat, mem, cpu, power = setup.tflite_benchmark(type)
 
     res = [round(lat, 2), round(float(cpu), 2), mem, power]
@@ -211,7 +211,7 @@ def main_tflite(model, type):
     return res
 
 def main_tensorrt(model):
-    setup = GetLatency(graph_path=model, img='latency_meter/assets/flower.jpg')
+    setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
     mem, gpu, lat, cpu, power = setup.tensorrt_benchmark()
     
     res = [round(lat, 2), round(gpu, 2), round(cpu, 2), mem, power]
