@@ -3,15 +3,12 @@ import re
 import json
 import time
 import psutil
-from jtop import jtop
 import subprocess
 from timeit import default_timer as timer
 import numpy as np
 from PIL import Image
 import warnings
 import threading
-from ina219 import INA219
-from ina219 import DeviceRangeError
 warnings.filterwarnings('ignore')
 
 ### FUNCTION ###
@@ -40,6 +37,8 @@ class CPU(threading.Thread):
         self.event.set()
 
 class INAEXT(threading.Thread):
+    from ina219 import INA219
+    from ina219 import DeviceRangeError
     def __init__(self):
         threading.Thread.__init__(self)
         self.result = None
@@ -165,6 +164,7 @@ class GetLatency:
     def tensorrt_benchmark(self):
         from polygraphy.backend.common import BytesFromPath
         from polygraphy.backend.trt import EngineFromBytes, TrtRunner
+        from jtop import jtop
         from polygraphy.logger import G_LOGGER
         G_LOGGER.module_severity = 50
         load_engine = EngineFromBytes(BytesFromPath(self._graph_path))
