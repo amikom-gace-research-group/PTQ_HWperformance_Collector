@@ -226,10 +226,10 @@ if __name__ == '__main__':
     data = []
     for i in range(int(args.iteration)+1):
         os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
-        if args.type == 'tflite':
+        if 'tflite' in args.type:
             d = main_tflite(args.model, args.type)
             data.append(d)
-        elif args.type == 'tensorrt':
+        elif 'trt' in args.type:
             d = main_tensorrt(args.model)
             data.append(d)
             subprocess.check_output('rm test.txt', shell=True)
