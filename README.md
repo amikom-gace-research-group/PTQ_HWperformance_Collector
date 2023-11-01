@@ -66,7 +66,7 @@ options:
 ```
 
 ## Test the benchmark ?
-Call `benchmark.py` in `dlpref_meter` folder
+Call `dlpref_meter/benchmark.py` in `main` folder
 
 ```
 usage: benchmark.py [-h] --model MODEL --type TYPE [--iteration ITERATION]
