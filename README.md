@@ -29,6 +29,9 @@ sudo apt install cgroup-tools
 # depedencies
 sudo pip install -r requirements_<device_label/>.txt
 
+# install tensorrt on Jetson Nano
+sudo apt install tensorrt
+
 # install tensorflow for Jetson Nano
 sudo apt-get install -y python3-pip pkg-config
 sudo apt-get install -y libhdf5-serial-dev hdf5-tools libhdf5-dev zlib1g-dev zip libjpeg8-dev liblapack-dev libblas-dev gfortran
