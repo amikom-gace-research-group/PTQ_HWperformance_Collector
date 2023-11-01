@@ -10,6 +10,7 @@ Flower classification. Trained from Oxford Flower 102 dataset.
 ## DL models Zoo
 
 Recently, provided the DL model in TFLite and TensorRT format
+[Link Example PTQ DL Models](https://drive.google.com/drive/folders/1R9VFMJfhEo8WbOKl4ZeI_5ZNmLiZ965q?usp=sharing)
 
 ## Pre-requirements
 
