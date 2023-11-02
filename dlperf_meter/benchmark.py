@@ -155,7 +155,7 @@ class GetLatency:
         thread.stop()
         thread.join()
         if 'jnano' in type:
-            power = jetson.power['avg']
+            power = jetson.power['tot']['avg']
             jetson.stop()
         elif 'rasp' in type:
             ina.stop()
