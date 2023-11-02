@@ -131,8 +131,8 @@ if __name__ == '__main__':
     parser.add_argument('--dev_type', help='device type | see in yaml file list', required=True)
     parser.add_argument('--iteration', help='how many model runs (not including warm-up)', required=True)
     parser.add_argument('--cgroup_name', help='cgroup name named in cgroup settings', required=True)
+    parser.add_argument('--passwd', help='enter the system password to clear the cache', required=True)
     args = parser.parse_args()
-    passwd = input("Password : ")
 
-    main(passwd, args.model_path, args.dev_type, int(args.iteration), args.cgroup_name)
-    os.system(f"echo {passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+    main(args.passwd, args.model_path, args.dev_type, int(args.iteration), args.cgroup_name)
+    os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
