@@ -43,6 +43,7 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
             if idx == 0:
                 if 'Warmup-GPU Usage (%)' not in template:
                     template['Warmup-GPU Usage (%)'] = []
+                    template['Warmup-J_Clock'] = []
                 template['Warmup-Latency (ms)'].append(float(j[0]))
                 template['Warmup-GPU Usage (%)'].append(float(j[1]))
                 template['Warmup-CPU Usage (%)'].append(float(j[2]))
@@ -50,6 +51,7 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 template['Warmup-Mem PSS Usage (Mb)'].append(float(j[3][1]))
                 template['Warmup-Mem USS Usage (Mb)'].append(float(j[3][2]))
                 template['Warmup-Power (mW)'].append(float(j[4]))
+                template['Warmup-J_Clock'].append(jclock_stat())
             else:
                 if f'Latency {idx} (ms)' not in template:
                     template[f'Latency {idx} (ms)'] = []
@@ -59,6 +61,7 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                     template[f'Memory USS Usage (Lat-{idx}) (Mb)'] = []
                     template[f'GPU Usage (Lat-{idx}) (%)'] = []
                     template[f'Power (Lat-{idx}) (mW)'] = []
+                    template[f'Lat({idx})-J_Clock'] = []
                 template[f'Latency {idx} (ms)'].append(float(j[0]))
                 template[f'GPU Usage (Lat-{idx}) (%)'].append(float(j[1]))
                 template[f'CPU Usage (Lat-{idx}) (%)'].append(float(j[2]))
@@ -66,6 +69,7 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[3][1]))
                 template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[3][2]))
                 template[f'Power (Lat-{idx}) (mW)'].append(float(j[4]))
+                template[f'Lat({idx})-J_Clock'].append(jclock_stat())
 
     df = pd.DataFrame(template)
     output_path=f'latency_{dev_type}.csv'
@@ -108,6 +112,16 @@ def get_size(file_path, unit='bytes'):
     else:
         size = file_size / 1024 ** exponents_map[unit]
         return round(size, 3)
+
+def jclock_stat():
+    from jtop import jtop
+    jetson = jtop()
+    jetson.start()
+    if jetson.jetson_clocks.status == 'running':
+        return 1
+    else:
+        return 0
+    jetson.close()
 
 if __name__ == '__main__':
     import argparse
