@@ -66,6 +66,8 @@ options:
                         how many model runs (not including warm-up)
   --cgroup_name CGROUP_NAME
                         cgroup name named in cgroup settings
+  --passwd PASSWD
+                        enter the system password to clear the cache
 ```
 
 ## Test the benchmark ?
