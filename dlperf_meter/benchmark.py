@@ -155,7 +155,7 @@ class GetLatency:
         thread.stop()
         thread.join()
         if 'jnano' in type:
-            power = jetson.power['tot']['avg']
+            power = [jetson.power['rail']['POM_5V_CPU']['avg'], jetson.power['rail']['POM_5V_GPU']['avg'], jetson.power['tot']['avg']]
             jetson.close()
         elif 'rasp' in type:
             ina.stop()
@@ -195,7 +195,7 @@ class GetLatency:
             time.sleep((2000-elapsed)/1000)
         thread.stop()
         thread.join()
-        power = jetson.power['tot']['avg']
+        power = [jetson.power['rail']['POM_5V_CPU']['avg'], jetson.power['rail']['POM_5V_GPU']['avg'], jetson.power['tot']['avg']]        
         jetson.close()
         cpu_percent = float(thread.result[0])
         return [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], gpu, elapsed, cpu_percent, power
