@@ -13,7 +13,7 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
     template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[]}
     time.sleep(10)
     print('Iteration :', iteration)
-    cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlpref_meter/benchmark.py --model {model_path} --type {dev_type} --iteration {iteration} --passwd {passwd}', shell=True)
+    cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlperf_meter/benchmark.py --model {model_path} --type {dev_type} --iteration {iteration} --passwd {passwd}', shell=True)
     res = cmd.decode('utf-8')
     data = ast.literal_eval(res)
     for idx, j in enumerate(data):
