@@ -55,7 +55,8 @@ Call `run_scenario.py` with these parameters
 Tips : run the program with `nohup` and background job (`&`). save log from shell with after parameter follow `>> log_run_scenario.txt`
 
 ```
-usage: run_scenario.py [-h] --model_path MODEL_PATH --dev_type DEV_TYPE --iteration ITERATION --cgroup_name CGROUP_NAME
+usage: run_scenario.py [-h] --model_path MODEL_PATH --dev_type DEV_TYPE --iteration ITERATION 
+                        --cgroup_name CGROUP_NAME --passwd PASSWD
 
 options:
   -h, --help            show this help message and exit
