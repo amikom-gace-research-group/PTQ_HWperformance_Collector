@@ -51,8 +51,8 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 template['Warmup-Mem PSS Usage (Mb)'].append(float(j[3][1]))
                 template['Warmup-Mem USS Usage (Mb)'].append(float(j[3][2]))
                 template['Warmup-Power (mW)'].append(float(j[4]))
-                template['Warmup-J_Clock'].append(jclock_stat()[0])
-                template['Warmup-J_NVP'].append(jclock_stat()[1])
+                template['Warmup-J_Clock'].append(jetson_stat()[0])
+                template['Warmup-J_NVP'].append(jetson_stat()[1])
             else:
                 if f'Latency {idx} (ms)' not in template:
                     template[f'Latency {idx} (ms)'] = []
@@ -71,8 +71,8 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[3][1]))
                 template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[3][2]))
                 template[f'Power (Lat-{idx}) (mW)'].append(float(j[4]))
-                template[f'Lat({idx})-J_Clock'].append(jclock_stat()[0])
-                template[f'Lat({idx})-J_NVP'].append(jclock_stat()[1])
+                template[f'Lat({idx})-J_Clock'].append(jetson_stat()[0])
+                template[f'Lat({idx})-J_NVP'].append(jetson_stat()[1])
 
     df = pd.DataFrame(template)
     output_path=f'latency_{dev_type}.csv'
