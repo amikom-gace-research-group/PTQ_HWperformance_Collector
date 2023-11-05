@@ -37,22 +37,17 @@ class CPU(threading.Thread):
         self.event.set()
 
 class INAEXT(threading.Thread):
-    try:
-        from ina219 import INA219
-        from ina219 import DeviceRangeError
-    except:
-        pass
     def __init__(self):
         threading.Thread.__init__(self)
         self.result = None
         self.event = threading.Event()
-        self.SHUNT_OHMS = 0.1
         self._list = []
 
     def run(self):
         try:
             while not self.event.is_set():
-                ina = INA219(self.SHUNT_OHMS)
+                from ina219 import INA219
+                ina = INA219(0.1)
                 ina.configure()
                 power_ = ina.power()
                 if power_ > 0.0:
