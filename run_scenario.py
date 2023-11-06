@@ -122,10 +122,11 @@ def jetson_stat():
     jetson.start()
     nvp = jetson.nvpmodel
     if jetson.jetson_clocks.status == 'running':
+        jetson.close()
         return 1, nvp
     else:
+        jetson.close()
         return 0, nvp
-    jetson.close()
 
 if __name__ == '__main__':
     import argparse
