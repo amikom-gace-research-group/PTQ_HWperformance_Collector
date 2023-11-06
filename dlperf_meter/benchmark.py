@@ -54,7 +54,7 @@ class INAEXT(threading.Thread):
                     self._list.append(power_)
             self.event.clear()
             res = sum(self._list) / len(self._list)
-            self.result = res, self._list
+            self.result = round(res, 2), self._list
         except:
             self.result = 0, self._list
             pass
