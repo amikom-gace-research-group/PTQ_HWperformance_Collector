@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import time
 import psutil
 import subprocess
@@ -31,7 +30,6 @@ class CPU(threading.Thread):
             self.result = res, self._list
         except:
             self.result = 0, self._list
-            pass
 
     def stop(self):
         self.event.set()
@@ -57,7 +55,6 @@ class INAEXT(threading.Thread):
             self.result = round(res, 2), self._list
         except:
             self.result = 0, self._list
-            pass
 
     def stop(self):
         self.event.set()
@@ -80,32 +77,41 @@ class GetLatency:
         mem_info = process.memory_full_info()
         return mem_info 
 
-    def _gpu_start(self):
-        subprocess.check_output('tegrastats --interval 10 --start --logfile test.txt', shell=True)
+    def _jstat_start(self, passwd):
+        subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --interval 10 --start --logfile test.txt', shell=True)
 
-    def _gpu_stop(self):
-        subprocess.check_output('tegrastats --stop', shell=True)
+    def _jstat_stop(self, passwd):
+        subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --stop', shell=True)
         out = open("test.txt", 'r')
         lines = out.read().split('\n')
-        entire = []
+        entire_gpu = []
+        entire_power = []
         try:
             for line in lines:
                 pattern = r"GR3D_FREQ (\d+)%"
                 match = re.search(pattern, line)
                 if match:
                     gpu_ = match.group(1)
-                    entire.append(float(gpu_))
-            entire_ = [num for num in entire if num > 0.0]
-            result = sum(entire_) / len(entire_)
-        except Exception as e:
-            result = 0
-            entire_ = entire
-            pass
+                    entire_gpu.append(float(gpu_))
+                pattern = r"POM_5V_IN (\d+)/(\d+)"
+                match = re.search(pattern, line)
+                if match:
+                    power_ = match.group(2)
+                    entire_power.append(float(power_))
+            entire_gpu_ = [num for num in entire_gpu if num > 0.0]
+            entire_power_ = [num for num in entire_power if num > 0.0]
+            result_gpu = sum(entire_gpu_) / len(entire_gpu_)
+            result_power = sum(entire_power_) / len(entire_power_)
+        except:
+            result_gpu = 0
+            result_power = 0
+            entire_gpu_ = entire_gpu
+            entire_power_ = entire_power
 
-        return result, entire_
+        return result_gpu, result_power, entire_gpu_,  entire_power_
     
     # @profile
-    def tflite_benchmark(self, type):
+    def tflite_benchmark(self, type, passwd):
         import tensorflow as tf
         interpreter = tf.lite.Interpreter(model_path=self._graph_path)
         interpreter.allocate_tensors()
@@ -134,8 +140,7 @@ class GetLatency:
         thread = CPU()
         thread.start()
         if 'jnano' in type:
-            jetson = jtop(interval=0.01)
-            jetson.start()
+            self._jstat_start(passwd)
         elif 'rasp' in type:
             ina = INAEXT()
             ina.start()
@@ -150,19 +155,17 @@ class GetLatency:
         thread.stop()
         thread.join()
         if 'jnano' in type:
-            power = jetson.power['tot']['avg']
-            jetson.close()
+            power = float(self._jstat_stop(passwd)[1])
         elif 'rasp' in type:
             ina.stop()
             ina.join()
             power = float(ina.result[0])
         cpu_percent = float(thread.result[0])
-        return elapsed, [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], cpu_percent, power
+        return elapsed, [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(cpu_percent, 2), round(power, 2)
     
-    def tensorrt_benchmark(self):
+    def tensorrt_benchmark(self, passwd):
         from polygraphy.backend.common import BytesFromPath
         from polygraphy.backend.trt import EngineFromBytes, TrtRunner
-        from jtop import jtop
         from polygraphy.logger import G_LOGGER
         G_LOGGER.module_severity = 50
         load_engine = EngineFromBytes(BytesFromPath(self._graph_path))
@@ -170,13 +173,11 @@ class GetLatency:
             img = Image.open(self._img).resize((224, 224))
             frame = np.array(img, dtype=np.float32) / 255.0
             input_data = np.expand_dims(frame, axis=0).astype(np.float32)
-            self._gpu_start()
+            self._jstat_start(passwd)
 
             # create the threads
             thread = CPU()
             thread.start()
-            jetson = jtop(interval=0.01)
-            jetson.start()
             time.sleep(2)
             start_time = timer()
             outputs = runner.infer(feed_dict={'input_1': input_data})
@@ -184,30 +185,28 @@ class GetLatency:
             end_time = timer()
 
         # retrieve the results
-        gpu = float(self._gpu_stop()[0])
+        gpu, power = self._jstat_stop(passwd)[0:2]
         elapsed = ((end_time - start_time) * 1000)
         if elapsed < 1000:
             time.sleep((2000-elapsed)/1000)
         thread.stop()
         thread.join()
-        power = jetson.power['tot']['avg']
-        jetson.close()
         cpu_percent = float(thread.result[0])
-        return [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], gpu, elapsed, cpu_percent, power
+        return [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(elapsed, 2), round(cpu_percent, 2), round(power, 2)
 
 ### RUN CODE FUNC ###
         
-def main_tflite(model, type):
+def main_tflite(model, type, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    lat, mem, cpu, power = setup.tflite_benchmark(type)
+    lat, mem, cpu, power = setup.tflite_benchmark(type, passwd)
 
     res = [round(lat, 2), round(float(cpu), 2), mem, power]
 
     return res
 
-def main_tensorrt(model):
+def main_tensorrt(model, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    mem, gpu, lat, cpu, power = setup.tensorrt_benchmark()
+    mem, gpu, lat, cpu, power = setup.tensorrt_benchmark(passwd)
     
     res = [round(lat, 2), round(gpu, 2), round(cpu, 2), mem, power]
     return res
@@ -223,12 +222,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     data = []
     for i in range(int(args.iteration)+1):
-        os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
         if 'tflite' in args.type:
-            d = main_tflite(args.model, args.type)
+            d = main_tflite(args.model, args.type, args.passwd)
             data.append(d)
         elif 'trt' in args.type:
-            d = main_tensorrt(args.model)
+            d = main_tensorrt(args.model, args.passwd)
             data.append(d)
             subprocess.check_output('rm test.txt', shell=True)
     print(data)
