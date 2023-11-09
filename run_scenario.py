@@ -44,6 +44,7 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 if 'Warmup-GPU Usage (%)' not in template:
                     template['Warmup-GPU Usage (%)'] = []
                     template['Warmup-J_Clock'] = []
+                    template['Warmup-J_NVP'] = []
                 template['Warmup-Latency (ms)'].append(float(j[0]))
                 template['Warmup-GPU Usage (%)'].append(float(j[1]))
                 template['Warmup-CPU Usage (%)'].append(float(j[2]))
@@ -75,7 +76,7 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 template[f'Lat({idx})-J_NVP'].append(jetson_stat()[1])
 
     df = pd.DataFrame(template)
-    output_path=f'latency_{dev_type}.csv'
+    output_path=f'dlperf_{dev_type}.csv'
     if os.path.exists(output_path):
         df.to_csv(output_path, mode='a', header=False)
     else: df.to_csv(output_path)
