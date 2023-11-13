@@ -10,7 +10,10 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
     os.system(f'echo {passwd} | sudo -S su -c "echo {memaloc}M > /sys/fs/cgroup/memory/{cgroup_name}/memory.limit_in_bytes"')
-    template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[]}
+    if 'trt' in dev_type:
+        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[]}
+    else:
+        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[]}
     time.sleep(10)
     print('Iteration :', iteration)
     cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlperf_meter/benchmark.py --model {model_path} --type {dev_type} --iteration {iteration} --passwd {passwd}', shell=True)
@@ -43,8 +46,6 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
             if idx == 0:
                 if 'Warmup-GPU Usage (%)' not in template:
                     template['Warmup-GPU Usage (%)'] = []
-                    template['Warmup-J_Clock'] = []
-                    template['Warmup-J_NVP'] = []
                 template['Warmup-Latency (ms)'].append(float(j[0]))
                 template['Warmup-GPU Usage (%)'].append(float(j[1]))
                 template['Warmup-CPU Usage (%)'].append(float(j[2]))
@@ -52,8 +53,6 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 template['Warmup-Mem PSS Usage (Mb)'].append(float(j[3][1]))
                 template['Warmup-Mem USS Usage (Mb)'].append(float(j[3][2]))
                 template['Warmup-Power (mW)'].append(float(j[4]))
-                template['Warmup-J_Clock'].append(jetson_stat()[0])
-                template['Warmup-J_NVP'].append(jetson_stat()[1])
             else:
                 if f'Latency {idx} (ms)' not in template:
                     template[f'Latency {idx} (ms)'] = []
@@ -63,8 +62,6 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                     template[f'Memory USS Usage (Lat-{idx}) (Mb)'] = []
                     template[f'GPU Usage (Lat-{idx}) (%)'] = []
                     template[f'Power (Lat-{idx}) (mW)'] = []
-                    template[f'Lat({idx})-J_Clock'] = []
-                    template[f'Lat({idx})-J_NVP'] = []
                 template[f'Latency {idx} (ms)'].append(float(j[0]))
                 template[f'GPU Usage (Lat-{idx}) (%)'].append(float(j[1]))
                 template[f'CPU Usage (Lat-{idx}) (%)'].append(float(j[2]))
@@ -72,8 +69,6 @@ def run(memaloc, passwd, model_path, dev_type, iteration, cgroup_name):
                 template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[3][1]))
                 template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[3][2]))
                 template[f'Power (Lat-{idx}) (mW)'].append(float(j[4]))
-                template[f'Lat({idx})-J_Clock'].append(jetson_stat()[0])
-                template[f'Lat({idx})-J_NVP'].append(jetson_stat()[1])
 
     df = pd.DataFrame(template)
     output_path=f'dlperf_{dev_type}.csv'
