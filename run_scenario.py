@@ -53,11 +53,11 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 if 'Warmup-GPU Usage (%)' not in template:
                     template['Warmup-GPU Usage (%)'] = []
                 template['Warmup-Latency (ms)'].append(float(j[0]))
-                template['Warmup-GPU Usage (%)'].append(float(j[1]))
-                template['Warmup-CPU Usage (%)'].append(float(j[2]))
-                template['Warmup-Mem RSS Usage (Mb)'].append(float(j[3][0]))
-                template['Warmup-Mem PSS Usage (Mb)'].append(float(j[3][1]))
-                template['Warmup-Mem USS Usage (Mb)'].append(float(j[3][2]))
+                template['Warmup-GPU Usage (%)'].append(float(j[3]))
+                template['Warmup-CPU Usage (%)'].append(float(j[1]))
+                template['Warmup-Mem RSS Usage (Mb)'].append(float(j[2][0]))
+                template['Warmup-Mem PSS Usage (Mb)'].append(float(j[2][1]))
+                template['Warmup-Mem USS Usage (Mb)'].append(float(j[2][2]))
                 template['Warmup-Power (mW)'].append(float(j[4]))
             else:
                 if f'Latency {idx} (ms)' not in template:
@@ -69,11 +69,11 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                     template[f'GPU Usage (Lat-{idx}) (%)'] = []
                     template[f'Power (Lat-{idx}) (mW)'] = []
                 template[f'Latency {idx} (ms)'].append(float(j[0]))
-                template[f'GPU Usage (Lat-{idx}) (%)'].append(float(j[1]))
-                template[f'CPU Usage (Lat-{idx}) (%)'].append(float(j[2]))
-                template[f'Memory RSS Usage (Lat-{idx}) (Mb)'].append(float(j[3][0]))
-                template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[3][1]))
-                template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[3][2]))
+                template[f'GPU Usage (Lat-{idx}) (%)'].append(float(j[3]))
+                template[f'CPU Usage (Lat-{idx}) (%)'].append(float(j[1]))
+                template[f'Memory RSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][0]))
+                template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][1]))
+                template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[2][2]))
                 template[f'Power (Lat-{idx}) (mW)'].append(float(j[4]))
 
     df = pd.DataFrame(template)
