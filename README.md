@@ -56,7 +56,7 @@ Call `run_scenario.py` with these parameters
 Tips : run the program with `nohup` and background job (`&`). Save log from shell with after parameter follow `>> log_run_scenario.log`
 
 ```
-usage: run_scenario.py [-h] --model_path MODEL_PATH --dev_type DEV_TYPE [--threads THREADS] --iteration ITERATION --cgroup_name
+usage: run_scenario.py [-h] --model_path MODEL_PATH --dev_type DEV_TYPE [--threads THREADS] --iterations ITERATIONS --cgroup_name
                        CGROUP_NAME --passwd PASSWD
 
 optional arguments:
@@ -65,7 +65,7 @@ optional arguments:
                         Path of the model
   --dev_type DEV_TYPE   device type | see in yaml file list
   --threads THREADS     num_threads (just for tflite)
-  --iteration ITERATION
+  --iterations ITERATIONS
                         how many model runs (not including warm-up)
   --cgroup_name CGROUP_NAME
                         cgroup name named in cgroup settings
