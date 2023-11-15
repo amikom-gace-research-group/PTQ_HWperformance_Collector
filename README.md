@@ -53,7 +53,7 @@ sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/<cgroup_name>/memory.m
 ## How it works ?
 Call `run_scenario.py` with these parameters
 
-Tips : run the program with `nohup` and background job (`&`). Save log from shell with after parameter follow `>> log_run_scenario.log`
+Tips : run the program with `nohup` and background job (`&`). Save log from shell with after parameter follow `>> run_scenario.log`
 
 ```
 usage: run_scenario.py [-h] --model_path MODEL_PATH --dev_type DEV_TYPE [--threads THREADS] --iterations ITERATIONS --cgroup_name
