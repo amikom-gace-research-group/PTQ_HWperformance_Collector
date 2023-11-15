@@ -75,14 +75,14 @@ options:
 Call `dlpref_meter/benchmark.py` in `main` folder
 
 ```
-usage: benchmark.py [-h] --model MODEL --type TYPE [--iteration ITERATION]
-                    --passwd PASSWD
+usage: benchmark.py [-h] --model MODEL --type TYPE [--threads THREADS] [--iterations ITERATIONS] --passwd PASSWD
 
 optional arguments:
   -h, --help            show this help message and exit
   --model MODEL         Path of the detection model
   --type TYPE           device types
-  --iteration ITERATION
+  --threads THREADS     num_threads (just for tflite)
+  --iterations ITERATIONS
                         how many model runs (auto add warmup once)
   --passwd PASSWD       user password
 ```
