@@ -5,7 +5,7 @@ import pandas as pd
 import time
 import subprocess
 
-def run(memaloc, passwd, model_path, dev_type, threads, iteration, cgroup_name):
+def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name):
     print(f"Physical Memory Limit : {memaloc}Mb")
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
@@ -15,8 +15,8 @@ def run(memaloc, passwd, model_path, dev_type, threads, iteration, cgroup_name):
     else:
         template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[]}
     time.sleep(10)
-    print('Iteration :', iteration)
-    cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlperf_meter/benchmark.py --model {model_path} --type {dev_type} --threads {threads} --iteration {iteration} --passwd {passwd}', shell=True)
+    print('iterations :', iterations)
+    cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlperf_meter/benchmark.py --model {model_path} --type {dev_type} --threads {threads} --iterations {iterations} --passwd {passwd}', shell=True)
     res = cmd.decode('utf-8')
     data = ast.literal_eval(res)
     for idx, j in enumerate(data):
@@ -82,27 +82,27 @@ def run(memaloc, passwd, model_path, dev_type, threads, iteration, cgroup_name):
     else: df.to_csv(output_path)
     print('='*25)
 
-def main(passwd, model_path, dev_type, threads, iteration, cgroup_name):
+def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
     with open('scenario.yml', 'r') as yml:
         scenarios = yaml.safe_load(yml)
     for g in range(scenarios[dev_type]['start'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
         for _ in range(5):
             try:
-                run(g, passwd, model_path, dev_type, threads, iteration, cgroup_name)
+                run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
                 print(f"Memory Allocation {g}M Cannot Run, Error {e}")
                 continue
     for k in reversed(range(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
         for _ in range(5):
             try:
-                run(k, passwd, model_path, dev_type, threads, iteration, cgroup_name)
+                run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
                 print(f"Memory Allocation {k}M Cannot Run, Error {e}")
                 continue
     for l in range(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
         for _ in range(5):
             try:
-                run(l, passwd, model_path, dev_type, threads, iteration, cgroup_name)
+                run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
                 print(f"Memory Allocation {l}M Cannot Run, Error {e}")
                 continue
@@ -136,9 +136,9 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', help='Path of the model', required=True)
     parser.add_argument('--dev_type', help='device type | see in yaml file list', required=True)
     parser.add_argument('--threads', help='num_threads (just for tflite)', default=1)
-    parser.add_argument('--iteration', help='how many model runs (not including warm-up)', required=True)
+    parser.add_argument('--iterations', help='how many model runs (not including warm-up)', required=True)
     parser.add_argument('--cgroup_name', help='cgroup name named in cgroup settings', required=True)
     parser.add_argument('--passwd', help='enter the system password to clear the cache', required=True)
     args = parser.parse_args()
 
-    main(args.passwd, args.model_path, args.dev_type, int(args.threads), int(args.iteration), args.cgroup_name)
+    main(args.passwd, args.model_path, args.dev_type, int(args.threads), int(args.iterations), args.cgroup_name)
