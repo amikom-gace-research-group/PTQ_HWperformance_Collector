@@ -212,6 +212,8 @@ class GetLatency:
 
                 hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(power, 2)])
 
+                gc.collect()
+
         return hwperf
 
 ### RUN CODE FUNC ###
