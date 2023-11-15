@@ -122,7 +122,7 @@ class GetLatency:
         height = input_details['shape'][1]
         width = input_details['shape'][2]
 
-        img = Image.open(args.input).resize((width, height))
+        img = Image.open(self._img).resize((width, height))
 
         # Convert image to NumPy array
         img_array = np.array(img, dtype=input_details["dtype"]) / 255.0
