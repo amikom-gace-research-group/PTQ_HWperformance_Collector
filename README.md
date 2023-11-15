@@ -33,6 +33,7 @@ sudo pip install -r requirements_<device_label/>.txt
 sudo apt install tensorrt
 
 # install tensorflow for Jetson Nano
+sudo ./install_protobuf-3.14.0.sh
 sudo apt-get install -y python3-pip pkg-config
 sudo apt-get install -y libhdf5-serial-dev hdf5-tools libhdf5-dev zlib1g-dev zip libjpeg8-dev liblapack-dev libblas-dev gfortran
 sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
