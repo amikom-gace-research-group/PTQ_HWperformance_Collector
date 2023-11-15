@@ -1,5 +1,6 @@
 import os
 import re
+import gc
 import time
 import psutil
 import subprocess
@@ -167,8 +168,9 @@ class GetLatency:
             cpu_percent = float(thread.result[0])
             hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(power, 2)])
 
-            # clear cache
-            os.system(f"echo {passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+            # clear session / past cache
+            tf.keras.backend.clear_session()
+            gc.collect()
 
         return hwperf
     
@@ -204,12 +206,11 @@ class GetLatency:
                 thread.stop()
                 thread.join()
                 cpu_percent = float(thread.result[0])
+
+                # deactivate and clear cache
                 runner.deactivate()
 
                 hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(power, 2)])
-
-                # clear cache
-                os.system(f"echo {passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
 
         return hwperf
 
