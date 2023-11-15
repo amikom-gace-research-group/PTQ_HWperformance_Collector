@@ -170,8 +170,8 @@ class GetLatency:
             cpu_percent = float(thread.result[0])
             hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(power, 2)])
 
-        # clear session / past cache
-        tf.keras.backend.clear_session()
+        # clear cache
+        os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
         gc.collect()
 
         return hwperf
@@ -213,6 +213,7 @@ class GetLatency:
 
             # deactivate and clear cache
             runner.deactivate()
+            os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
             gc.collect()
 
         return hwperf
