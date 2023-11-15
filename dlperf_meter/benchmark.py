@@ -183,8 +183,8 @@ class GetLatency:
         with TrtRunner(load_engine) as runner:
             input_metadata = runner.get_input_metadata()
             img = Image.open(self._img).resize((224, 224))
-            frame = np.array(img, dtype=input_metadata['dtype']) / 255.0
-            input_data = np.expand_dims(frame, axis=0).astype(input_metadata['dtype'])
+            frame = np.array(img, dtype=input_metadata["input_1"].dtype) / 255.0
+            input_data = np.expand_dims(frame, axis=0).astype(input_metadata["input_1"].dtype)
 
             hwperf = []
 
