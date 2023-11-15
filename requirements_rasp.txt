@@ -1,9 +1,8 @@
 colored
 pandas
 Pillow
-protobuf==3.14.0
 psutil
 PyYAML
-silence-tensorflow==1.2.1
+silence-tensorflow
 tensorflow
 pi-ina219
