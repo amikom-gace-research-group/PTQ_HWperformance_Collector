@@ -35,30 +35,30 @@ class CPU(threading.Thread):
     def stop(self):
         self.event.set()
 
-class INAEXT(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.result = None
-        self.event = threading.Event()
-        self._list = []
+# class INAEXT(threading.Thread):
+#     def __init__(self):
+#         threading.Thread.__init__(self)
+#         self.result = None
+#         self.event = threading.Event()
+#         self._list = []
 
-    def run(self):
-        try:
-            while not self.event.is_set():
-                from ina219 import INA219
-                ina = INA219(0.1)
-                ina.configure()
-                power_ = ina.power()
-                if power_ > 0.0:
-                    self._list.append(power_)
-            self.event.clear()
-            res = sum(self._list) / len(self._list)
-            self.result = res, self._list
-        except:
-            self.result = 0, self._list
+#     def run(self):
+#         try:
+#             while not self.event.is_set():
+#                 from ina219 import INA219
+#                 ina = INA219(0.1)
+#                 ina.configure()
+#                 power_ = ina.power()
+#                 if power_ > 0.0:
+#                     self._list.append(power_)
+#             self.event.clear()
+#             res = sum(self._list) / len(self._list)
+#             self.result = res, self._list
+#         except:
+#             self.result = 0, self._list
 
-    def stop(self):
-        self.event.set()
+#     def stop(self):
+#         self.event.set()
 
 class GetLatency:
     def __init__(self, graph_path='', img=''):
@@ -146,9 +146,9 @@ class GetLatency:
             thread.start()
             if 'jnano' in type:
                 self._jstat_start(passwd)
-            elif 'rasp' in type:
-                ina = INAEXT()
-                ina.start()
+            # elif 'rasp' in type:
+            #     ina = INAEXT()
+            #     ina.start()
             time.sleep(2)
             start = timer()
             interpreter.invoke()
@@ -161,10 +161,12 @@ class GetLatency:
             thread.join()
             if 'jnano' in type:
                 power = float(self._jstat_stop(passwd)[1])
-            elif 'rasp' in type:
-                ina.stop()
-                ina.join()
-                power = float(ina.result[0])
+            # elif 'rasp' in type:
+            #     ina.stop()
+            #     ina.join()
+            #     power = float(ina.result[0])
+            else:
+                power = 0
             cpu_percent = float(thread.result[0])
             hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(power, 2)])
 
