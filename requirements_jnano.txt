@@ -3,7 +3,6 @@ jetson-stats
 pandas
 Pillow
 polygraphy
-protobuf==3.14.0
 psutil
 PyYAML
 silence-tensorflow
