@@ -202,7 +202,7 @@ class GetLatency:
                 # retrieve the results
                 mem_res = self._process_memory()
                 gpu, power = self._jstat_stop(passwd)[0:2]
-                elapsed = runner.inference_time / 1000
+                elapsed = runner.inference_time * 1000
                 if elapsed < 1000:
                     time.sleep((2000-elapsed)/1000)
                 thread.stop()
