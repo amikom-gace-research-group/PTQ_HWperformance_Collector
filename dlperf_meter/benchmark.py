@@ -52,7 +52,7 @@ class INAEXT(threading.Thread):
                     self._list.append(power_)
             self.event.clear()
             res = sum(self._list) / len(self._list)
-            self.result = round(res, 2), self._list
+            self.result = res, self._list
         except:
             self.result = 0, self._list
 
@@ -111,105 +111,121 @@ class GetLatency:
         return result_gpu, result_power, entire_gpu_,  entire_power_
     
     # @profile
-    def tflite_benchmark(self, type, passwd):
+    def tflite_benchmark(self, iterations, type, threads, passwd):
         import tensorflow as tf
-        interpreter = tf.lite.Interpreter(model_path=self._graph_path)
+        interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=int(threads))
         interpreter.allocate_tensors()
 
-        input_details = interpreter.get_input_details()
+        input_details = interpreter.get_input_details()[0]
+        output_index = interpreter.get_output_details()[0]["index"]
 
-        # check the type of the input tensor
-        floating_model = input_details[0]['dtype'] == np.float32
-        uint8_model = input_details[0]['dtype'] == np.uint8
+        height = input_details['shape'][1]
+        width = input_details['shape'][2]
 
-        # NxHxWxC, H:1, W:2
-        height = input_details[0]['shape'][1]
-        width = input_details[0]['shape'][2]
+        img = Image.open(args.input).resize((width, height))
 
-        img = Image.open(self._img).resize((width, height))
+        # Convert image to NumPy array
+        img_array = np.array(img, dtype=input_details["dtype"]) / 255.0
+
+        # Check if the input type is quantized, then rescale input data to uint8
+        if input_details['dtype'] == np.uint8:
+            input_scale, input_zero_point = input_details["quantization"]
+            img_array = img_array / input_scale + input_zero_point
 
         # add N dim
-        input_data = np.expand_dims(img, axis=0)
+        input_data = np.expand_dims(img, axis=0).astype(input_details["dtype"])
 
-        if floating_model:
-            input_data = (np.float32(input_data) - 127.5) / 127.5
+        interpreter.set_tensor(input_details['index'], input_data)
 
-        interpreter.set_tensor(input_details[0]['index'], input_data)
+        hwperf = []
 
-        # Run inference.
-        thread = CPU()
-        thread.start()
-        if 'jnano' in type:
-            self._jstat_start(passwd)
-        elif 'rasp' in type:
-            ina = INAEXT()
-            ina.start()
-        time.sleep(2)
-        start = timer()
-        interpreter.invoke()
-        mem_res = self._process_memory()
-        end = timer()
-        elapsed = ((end - start) * 1000)
-        if elapsed < 1000:
-            time.sleep((2000-elapsed)/1000)
-        thread.stop()
-        thread.join()
-        if 'jnano' in type:
-            power = float(self._jstat_stop(passwd)[1])
-        elif 'rasp' in type:
-            ina.stop()
-            ina.join()
-            power = float(ina.result[0])
-        cpu_percent = float(thread.result[0])
-        return elapsed, [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(cpu_percent, 2), round(power, 2)
+        for i in np.arange(iterations+1):
+            # Run inference.
+            thread = CPU()
+            thread.start()
+            if 'jnano' in type:
+                self._jstat_start(passwd)
+            elif 'rasp' in type:
+                ina = INAEXT()
+                ina.start()
+            time.sleep(2)
+            start = timer()
+            interpreter.invoke()
+            mem_res = self._process_memory()
+            end = timer()
+            elapsed = ((end - start) * 1000)
+            if elapsed < 1000:
+                time.sleep((2000-elapsed)/1000)
+            thread.stop()
+            thread.join()
+            if 'jnano' in type:
+                power = float(self._jstat_stop(passwd)[1])
+            elif 'rasp' in type:
+                ina.stop()
+                ina.join()
+                power = float(ina.result[0])
+            cpu_percent = float(thread.result[0])
+            hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(power, 2)])
+
+            # clear cache
+            os.system(f"echo {passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+
+        return hwperf
     
-    def tensorrt_benchmark(self, passwd):
+    def tensorrt_benchmark(self, iterations, passwd):
         from polygraphy.backend.common import BytesFromPath
         from polygraphy.backend.trt import EngineFromBytes, TrtRunner
         from polygraphy.logger import G_LOGGER
         G_LOGGER.module_severity = 50
         load_engine = EngineFromBytes(BytesFromPath(self._graph_path))
         with TrtRunner(load_engine) as runner:
+            input_metadata = runner.get_input_metadata()
             img = Image.open(self._img).resize((224, 224))
-            frame = np.array(img, dtype=np.float32) / 255.0
-            input_data = np.expand_dims(frame, axis=0).astype(np.float32)
-            self._jstat_start(passwd)
+            frame = np.array(img, dtype=input_metadata['dtype']) / 255.0
+            input_data = np.expand_dims(frame, axis=0).astype(input_metadata['dtype'])
 
-            # create the threads
-            thread = CPU()
-            thread.start()
-            time.sleep(2)
-            start_time = timer()
-            outputs = runner.infer(feed_dict={'input_1': input_data})
-            mem_res = self._process_memory()
-            end_time = timer()
+            hwperf = []
 
-        # retrieve the results
-        gpu, power = self._jstat_stop(passwd)[0:2]
-        elapsed = ((end_time - start_time) * 1000)
-        if elapsed < 1000:
-            time.sleep((2000-elapsed)/1000)
-        thread.stop()
-        thread.join()
-        cpu_percent = float(thread.result[0])
-        return [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(elapsed, 2), round(cpu_percent, 2), round(power, 2)
+            for i in np.arange(iterations+1):
+                runner.activate()
+                # create the threads
+                self._jstat_start(passwd)
+                thread = CPU()
+                thread.start()
+                time.sleep(2)
+                runner.infer(feed_dict={'input_1': input_data})
+
+                # retrieve the results
+                mem_res = self._process_memory()
+                gpu, power = self._jstat_stop(passwd)[0:2]
+                elapsed = runner.inference_time / 1000
+                if elapsed < 1000:
+                    time.sleep((2000-elapsed)/1000)
+                thread.stop()
+                thread.join()
+                cpu_percent = float(thread.result[0])
+                runner.deactivate()
+
+                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(power, 2)])
+
+                # clear cache
+                os.system(f"echo {passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+
+        return hwperf
 
 ### RUN CODE FUNC ###
         
-def main_tflite(model, type, passwd):
+def main_tflite(model, iterations, type, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    lat, mem, cpu, power = setup.tflite_benchmark(type, passwd)
+    hwperf = setup.tflite_benchmark(iterations, type, passwd)
 
-    res = [round(lat, 2), round(float(cpu), 2), mem, power]
+    return hwperf
 
-    return res
-
-def main_tensorrt(model, passwd):
+def main_tensorrt(model, iterations, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    mem, gpu, lat, cpu, power = setup.tensorrt_benchmark(passwd)
+    hwperf = setup.tensorrt_benchmark(iterations, passwd)
     
-    res = [round(lat, 2), round(gpu, 2), round(cpu, 2), mem, power]
-    return res
+    return hwperf
 
 if __name__ == '__main__':
     import argparse
@@ -217,18 +233,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help='Path of the detection model', required=True)
     parser.add_argument('--type', help='device types', required=True)
-    parser.add_argument('--iteration', help='how many model runs (auto add warmup once)', default=1)
+    parser.add_argument('--threads', help='num_threads (just for tflite)', default=1)
+    parser.add_argument('--iterations', help='how many model runs (auto add warmup once)', default=1)
     parser.add_argument('--passwd', help='user password', required=True)
     args = parser.parse_args()
-    data = []
-    for i in range(int(args.iteration)+1):
-        if 'tflite' in args.type:
-            d = main_tflite(args.model, args.type, args.passwd)
-            data.append(d)
-        elif 'trt' in args.type:
-            d = main_tensorrt(args.model, args.passwd)
-            data.append(d)
-            subprocess.check_output('rm test.txt', shell=True)
+    
+    if 'tflite' in args.type:
+        data = main_tflite(args.model, int(args.iterations), args.type, args.threads, args.passwd)
+    elif 'trt' in args.type:
+        data = main_tensorrt(args.model, int(args.iterations), args.passwd)
+        subprocess.check_output('rm test.txt', shell=True)
+    
     print(data)
-    os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
-
