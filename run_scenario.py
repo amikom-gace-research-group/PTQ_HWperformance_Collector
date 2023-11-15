@@ -3,6 +3,7 @@ import ast
 import yaml
 import pandas as pd
 import time
+import logging
 import subprocess
 
 def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name):
@@ -90,23 +91,19 @@ def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
-                print(f"Memory Allocation {g}M Cannot Run, Error {e}")
-                continue
+                logging.exception("Exception occurred")
     for k in reversed(range(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
         for _ in range(5):
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
-                print(f"Memory Allocation {k}M Cannot Run, Error {e}")
-                continue
+                logging.exception("Exception occurred")
     for l in range(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
         for _ in range(5):
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
-                print(f"Memory Allocation {l}M Cannot Run, Error {e}")
-                continue
-
+                logging.exception("Exception occurred")
 def get_size(file_path, unit='bytes'):
     file_size = os.path.getsize(file_path)
     exponents_map = {'bytes': 0, 'kb': 1, 'mb': 2, 'gb': 3}
@@ -140,5 +137,5 @@ if __name__ == '__main__':
     parser.add_argument('--cgroup_name', help='cgroup name named in cgroup settings', required=True)
     parser.add_argument('--passwd', help='enter the system password to clear the cache', required=True)
     args = parser.parse_args()
-
+    logging.basicConfig(filename=f'run_scenario_{args.dev_type}.log', filemode='w')
     main(args.passwd, args.model_path, args.dev_type, int(args.threads), int(args.iterations), args.cgroup_name)
