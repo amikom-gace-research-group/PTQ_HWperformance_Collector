@@ -144,7 +144,7 @@ class GetLatency:
             # Run inference.
             thread = CPU()
             thread.start()
-            if 'jnano' in type:
+            if 'jetson' in type:
                 self._jstat_start(passwd)
             # elif 'rasp' in type:
             #     ina = INAEXT()
@@ -159,7 +159,7 @@ class GetLatency:
                 time.sleep((2000-elapsed)/1000)
             thread.stop()
             thread.join()
-            if 'jnano' in type:
+            if 'jetson' in type:
                 power = float(self._jstat_stop(passwd)[1])
             # elif 'rasp' in type:
             #     ina.stop()
@@ -243,7 +243,7 @@ if __name__ == '__main__':
     
     if 'tflite' in args.type:
         data = main_tflite(args.model, int(args.iterations), args.type, args.threads, args.passwd)
-    elif 'trt' in args.type:
+    elif 'jetson' in args.type:
         data = main_tensorrt(args.model, int(args.iterations), args.passwd)
         subprocess.check_output('rm test.txt', shell=True)
     
