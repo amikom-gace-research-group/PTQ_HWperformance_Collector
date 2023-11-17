@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 import warnings
 import threading
+from platform import uname
 warnings.filterwarnings('ignore')
 
 ### FUNCTION ###
@@ -112,7 +113,7 @@ class GetLatency:
         return result_gpu, result_power, entire_gpu_,  entire_power_
     
     # @profile
-    def tflite_benchmark(self, iterations, type, threads, passwd):
+    def tflite_benchmark(self, iterations, threads, passwd):
         import tensorflow as tf
         interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=int(threads))
         interpreter.allocate_tensors()
@@ -144,7 +145,7 @@ class GetLatency:
             # Run inference.
             thread = CPU()
             thread.start()
-            if 'jetson' in type:
+            if 'tegra' in uname().release:
                 self._jstat_start(passwd)
             # elif 'rasp' in type:
             #     ina = INAEXT()
@@ -159,7 +160,7 @@ class GetLatency:
                 time.sleep((2000-elapsed)/1000)
             thread.stop()
             thread.join()
-            if 'jetson' in type:
+            if 'tegra' in uname().release:
                 power = float(self._jstat_stop(passwd)[1])
             # elif 'rasp' in type:
             #     ina.stop()
@@ -220,7 +221,7 @@ class GetLatency:
         
 def main_tflite(model, iterations, type, threads, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    hwperf = setup.tflite_benchmark(iterations, type, threads, passwd)
+    hwperf = setup.tflite_benchmark(iterations, threads, passwd)
 
     return hwperf
 
@@ -241,9 +242,9 @@ if __name__ == '__main__':
     parser.add_argument('--passwd', help='user password', required=True)
     args = parser.parse_args()
     
-    if 'tflite' in args.type:
-        data = main_tflite(args.model, int(args.iterations), args.type, args.threads, args.passwd)
-    elif 'jetson' in args.type:
+    if 'cpu' in args.type:
+        data = main_tflite(args.model, int(args.iterations), args.threads, args.passwd)
+    elif 'gpu' in args.type:
         data = main_tensorrt(args.model, int(args.iterations), args.passwd)
         subprocess.check_output('rm test.txt', shell=True)
     
