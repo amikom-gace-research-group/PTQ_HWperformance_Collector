@@ -219,7 +219,7 @@ class GetLatency:
 
 ### RUN CODE FUNC ###
         
-def main_tflite(model, iterations, type, threads, passwd):
+def main_tflite(model, iterations, threads, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
     hwperf = setup.tflite_benchmark(iterations, threads, passwd)
 
