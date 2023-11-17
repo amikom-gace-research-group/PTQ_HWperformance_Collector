@@ -1,8 +1,8 @@
-trt:
+gpu:
   start: 250
   stop: 1500
   stage: 50
-tflite:
+cpu:
   start: 30
   stop: 780
   stage: 30
