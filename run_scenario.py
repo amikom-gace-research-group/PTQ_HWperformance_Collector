@@ -11,7 +11,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
     os.system(f'echo {passwd} | sudo -S su -c "echo {memaloc}M > /sys/fs/cgroup/memory/{cgroup_name}/memory.limit_in_bytes"')
-    if 'trt' in dev_type:
+    if 'gpu' in dev_type:
         template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[]}
     else:
         template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[]}
@@ -21,7 +21,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
     res = cmd.decode('utf-8')
     data = ast.literal_eval(res)
     for idx, j in enumerate(data):
-        if 'tflite' in dev_type:
+        if 'cpu' in dev_type:
             if idx == 0:
                 template['Warmup-Latency (ms)'].append(float(j[0]))
                 template['Warmup-CPU Usage (%)'].append(float(j[1]))
@@ -48,7 +48,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 template[f'Memory RSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][0]))
                 template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][1]))
                 template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[2][2]))
-        elif 'trt' in dev_type:
+        elif 'gpu' in dev_type:
             if idx == 0:
                 if 'Warmup-GPU Usage (%)' not in template:
                     template['Warmup-GPU Usage (%)'] = []
