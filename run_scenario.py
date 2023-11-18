@@ -91,19 +91,19 @@ def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
-                logging.exception("Exception occurred")
+                logging.exception(f"Exception occurred, error {e}")
     for k in reversed(range(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
         for _ in range(5):
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
-                logging.exception("Exception occurred")
+                logging.exception(f"Exception occurred, error {e}")
     for l in range(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
         for _ in range(5):
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             except Exception as e:
-                logging.exception("Exception occurred")
+                logging.exception(f"Exception occurred, error {e}")
 def get_size(file_path, unit='bytes'):
     file_size = os.path.getsize(file_path)
     exponents_map = {'bytes': 0, 'kb': 1, 'mb': 2, 'gb': 3}
