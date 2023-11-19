@@ -115,7 +115,7 @@ class GetLatency:
     # @profile
     def tflite_benchmark(self, iterations, threads, passwd):
         import tensorflow as tf
-        interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=int(threads))
+        interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=threads)
         interpreter.allocate_tensors()
 
         input_details = interpreter.get_input_details()[0]
@@ -237,13 +237,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help='Path of the detection model', required=True)
     parser.add_argument('--type', help='device types', required=True)
-    parser.add_argument('--threads', help='num_threads (just for tflite)', default=1)
+    parser.add_argument('--threads', help='num_threads (just for tflite)', default=None)
     parser.add_argument('--iterations', help='how many model runs (auto add warmup once)', default=1)
     parser.add_argument('--passwd', help='user password', required=True)
     args = parser.parse_args()
     
     if 'cpu' in args.type:
-        data = main_tflite(args.model, int(args.iterations), args.threads, args.passwd)
+        data = main_tflite(args.model, int(args.iterations), (None if args.threads == None else int(args.threads)), args.passwd)
     elif 'gpu' in args.type:
         data = main_tensorrt(args.model, int(args.iterations), args.passwd)
         subprocess.check_output('rm test.txt', shell=True)
