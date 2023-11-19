@@ -138,4 +138,4 @@ if __name__ == '__main__':
     parser.add_argument('--passwd', help='enter the system password to clear the cache', required=True)
     args = parser.parse_args()
     logging.basicConfig(filename=f'run_scenario_{args.dev_type}.log', filemode='w')
-    main(args.passwd, args.model_path, args.dev_type, (None if args.threads == 'None' else int(args.threads)), int(args.iterations), args.cgroup_name)
+    main(args.passwd, args.model_path, args.dev_type, (None if args.threads == None else int(args.threads)), int(args.iterations), args.cgroup_name)
