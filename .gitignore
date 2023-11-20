@@ -2,3 +2,4 @@
 test.txt
 *.csv
 *.log
+models/
