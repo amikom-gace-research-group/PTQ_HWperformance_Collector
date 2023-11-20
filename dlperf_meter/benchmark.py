@@ -243,7 +243,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if 'cpu' in args.type:
-        data = main_tflite(args.model, int(args.iterations), (int(args.threads) if isinstance(args.threads, int) else None), args.passwd)
+        data = main_tflite(args.model, int(args.iterations), (None if args.threads == None else int(args.threads)), args.passwd)
     elif 'gpu' in args.type:
         data = main_tensorrt(args.model, int(args.iterations), args.passwd)
         subprocess.check_output('rm test.txt', shell=True)
