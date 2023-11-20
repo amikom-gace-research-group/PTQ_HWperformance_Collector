@@ -26,11 +26,13 @@ class CPU(threading.Thread):
                 output = subprocess.check_output(['pidstat', '-p', str(os.getpid()), '1', '1'])
                 cpu_ = float(output.splitlines()[-2].split()[-3])
                 if cpu_ > 0.0:
-                    self._list.append(cpu_)
+                    with threading.Lock():
+                        self._list.append(cpu_)
             self.event.clear()
             res = sum(self._list) / len(self._list)
             self.result = res, self._list
-        except:
+        except Exception as e:
+            print(f"Error in CPU measurement : {e}")
             self.result = 0, self._list
 
     def stop(self):
