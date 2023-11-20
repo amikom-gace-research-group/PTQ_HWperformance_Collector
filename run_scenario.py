@@ -1,4 +1,5 @@
 import os
+import gc
 import ast
 import yaml
 import pandas as pd
@@ -91,6 +92,7 @@ def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                gc.collect()
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for k in reversed(range(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
@@ -98,6 +100,7 @@ def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                gc.collect()
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for l in range(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
@@ -105,6 +108,7 @@ def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                gc.collect()
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
                 

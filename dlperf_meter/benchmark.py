@@ -171,6 +171,10 @@ class GetLatency:
             cpu_percent = float(thread.result[0])
             hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(power, 2)])
 
+            # clear cache
+            os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+            gc.collect()
+
         return hwperf
     
     def tensorrt_benchmark(self, iterations, passwd):
@@ -188,6 +192,7 @@ class GetLatency:
             hwperf = []
 
             for i in np.arange(iterations+1):
+                runner.activate()
                 self._jstat_start(passwd)
                 thread = CPU()
                 thread.start()
@@ -205,6 +210,12 @@ class GetLatency:
                 cpu_percent = float(thread.result[0])
 
                 hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(power, 2)])
+                runner.deactivate()
+
+                # clear cache
+                os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                gc.collect()
+                
             
         return hwperf
 
