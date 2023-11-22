@@ -1,5 +1,4 @@
 import os
-import gc
 import ast
 import yaml
 import pandas as pd
