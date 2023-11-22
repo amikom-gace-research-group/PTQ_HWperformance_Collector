@@ -2,6 +2,7 @@ import os
 import ast
 import yaml
 import pandas as pd
+import numpy as np
 import time
 import logging
 import subprocess
@@ -86,22 +87,22 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
 def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
     with open('scenario.yml', 'r') as yml:
         scenarios = yaml.safe_load(yml)
-    for g in range(scenarios[dev_type]['start'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
-        for _ in range(5):
+    for g in np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
+        for _ in np.arange(5):
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
-    for k in reversed(range(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
-        for _ in range(5):
+    for k in reversed(np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
+        for _ in np.arange(5):
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
-    for l in range(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
-        for _ in range(5):
+    for l in np.arange(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
+        for _ in np.arange(5):
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
