@@ -1,6 +1,5 @@
 import os
 import re
-import gc
 import time
 import psutil
 import subprocess
@@ -175,7 +174,6 @@ class GetLatency:
 
             # clear cache
             os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
-            gc.collect()
 
         return hwperf
     
@@ -216,8 +214,6 @@ class GetLatency:
 
                 # clear cache
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
-                gc.collect()
-                
             
         return hwperf
 
