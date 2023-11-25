@@ -44,6 +44,9 @@ sudo pip3 install --verbose tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl
 
 Active the cgroup control
 ```shell
+# for raspberry pi, add command in /boot/cmdline.txt
+systemd.unified_cgroup_hierarchy=0 cgroup_enable=memory cgroup_memory=1 swapaccount=1
+
 sudo cgcreate -g memory:<cgroup_name>
 sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/<cgroup_name>/memory.limit_in_bytes'
 sudo su -c 'echo 10 > /sys/fs/cgroup/memory/<cgroup_name>/memory.swappiness'
