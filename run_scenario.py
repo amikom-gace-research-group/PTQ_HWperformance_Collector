@@ -6,6 +6,7 @@ import numpy as np
 import time
 import logging
 import subprocess
+from platform import uname
 
 def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name):
     print(f"Physical Memory Limit : {memaloc}Mb")
@@ -29,7 +30,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 template['Warmup-Mem RSS Usage (Mb)'].append(float(j[2][0]))
                 template['Warmup-Mem PSS Usage (Mb)'].append(float(j[2][1]))
                 template['Warmup-Mem USS Usage (Mb)'].append(float(j[2][2]))
-                if 'jnano' in dev_type:
+                if 'tegra' in uname().release:
                     if 'Warmup-Power (mW)' not in template:
                         template['Warmup-Power (mW)'] = []
                     template['Warmup-Power (mW)'].append(float(j[3]))
@@ -40,7 +41,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                     template[f'Memory RSS Usage (Lat-{idx}) (Mb)'] = []
                     template[f'Memory PSS Usage (Lat-{idx}) (Mb)'] = []
                     template[f'Memory USS Usage (Lat-{idx}) (Mb)'] = []
-                    if 'jnano' in dev_type:
+                    if 'tegra' in uname().release:
                         if f'Power (Lat-{idx}) (mW)' not in template:
                             template[f'Power (Lat-{idx}) (mW)'] = []
                         template[f'Power (Lat-{idx}) (mW)'].append(float(j[3]))
