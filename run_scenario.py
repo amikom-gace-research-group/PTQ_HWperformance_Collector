@@ -30,7 +30,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 template['Warmup-Mem RSS Usage (Mb)'].append(float(j[2][0]))
                 template['Warmup-Mem PSS Usage (Mb)'].append(float(j[2][1]))
                 template['Warmup-Mem USS Usage (Mb)'].append(float(j[2][2]))
-                if 'tegra' in uname().release:
+                if 'tegra' in uname().release or check_ina219():
                     if 'Warmup-Power (mW)' not in template:
                         template['Warmup-Power (mW)'] = []
                     template['Warmup-Power (mW)'].append(float(j[3]))
@@ -41,7 +41,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                     template[f'Memory RSS Usage (Lat-{idx}) (Mb)'] = []
                     template[f'Memory PSS Usage (Lat-{idx}) (Mb)'] = []
                     template[f'Memory USS Usage (Lat-{idx}) (Mb)'] = []
-                    if 'tegra' in uname().release:
+                    if 'tegra' in uname().release or check_ina219():
                         if f'Power (Lat-{idx}) (mW)' not in template:
                             template[f'Power (Lat-{idx}) (mW)'] = []
                         template[f'Power (Lat-{idx}) (mW)'].append(float(j[3]))
@@ -89,21 +89,21 @@ def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
     with open('scenario.yml', 'r') as yml:
         scenarios = yaml.safe_load(yml)
     for g in np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
-        for _ in np.arange(5):
+        for _ in np.arange(10):
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for k in reversed(np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
-        for _ in np.arange(5):
+        for _ in np.arange(10):
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for l in np.arange(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
-        for _ in np.arange(5):
+        for _ in np.arange(10):
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
@@ -131,6 +131,16 @@ def jetson_stat():
     else:
         jetson.close()
         return 0, nvp
+
+def check_ina219():
+    try:
+        import ina219
+        ina = ina219.INA219(0.1)
+        voltage = ina.voltage()
+        # If the script reaches here without errors, the INA219 is connected
+        return True
+    except:
+        return False
 
 if __name__ == '__main__':
     import argparse
