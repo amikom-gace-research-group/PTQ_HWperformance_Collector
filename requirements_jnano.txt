@@ -3,6 +3,6 @@ jetson-stats
 pandas
 Pillow
 polygraphy
-psutil
+psutil==5.8
 PyYAML
 silence-tensorflow
