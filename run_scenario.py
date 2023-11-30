@@ -4,9 +4,14 @@ import yaml
 import pandas as pd
 import numpy as np
 import time
+import psutil
 import logging
 import subprocess
 from platform import uname
+from dlperf_meter.benchmark import check_ina219
+
+# warm-up cpu freq
+psutil.cpu_count()
 
 def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name):
     print(f"Physical Memory Limit : {memaloc}Mb")
@@ -14,9 +19,9 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
     print("Model : ", model_name)
     os.system(f'echo {passwd} | sudo -S su -c "echo {memaloc}M > /sys/fs/cgroup/memory/{cgroup_name}/memory.limit_in_bytes"')
     if 'gpu' in dev_type:
-        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[]}
+        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'CPU Cores':[psutil.cpu_count()], 'CPU Freq (MHz)':[psutil.cpu_freq().current], 'GPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[], 'Warmup-GPU Usage (%)':[]}
     else:
-        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[]}
+        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'CPU Cores':[psutil.cpu_count()], 'CPU Freq (MHz)':[psutil.cpu_freq().current], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[]}
     time.sleep(10)
     print('iterations :', iterations)
     cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlperf_meter/benchmark.py --model {model_path} --type {dev_type} --threads {threads} --iterations {iterations} --passwd {passwd}', shell=True)
@@ -52,8 +57,7 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[2][2]))
         elif 'gpu' in dev_type:
             if idx == 0:
-                if 'Warmup-GPU Usage (%)' not in template:
-                    template['Warmup-GPU Usage (%)'] = []
+                template['GPU Freq (MHz)'].append(j[5])
                 template['Warmup-Latency (ms)'].append(float(j[0]))
                 template['Warmup-GPU Usage (%)'].append(float(j[3]))
                 template['Warmup-CPU Usage (%)'].append(float(j[1]))
@@ -131,16 +135,6 @@ def jetson_stat():
     else:
         jetson.close()
         return 0, nvp
-
-def check_ina219():
-    try:
-        import ina219
-        ina = ina219.INA219(0.1)
-        voltage = ina.voltage()
-        # If the script reaches here without errors, the INA219 is connected
-        return True
-    except:
-        return False
 
 if __name__ == '__main__':
     import argparse

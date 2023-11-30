@@ -37,30 +37,30 @@ class CPU(threading.Thread):
     def stop(self):
         self.event.set()
 
-# class INAEXT(threading.Thread):
-#     def __init__(self):
-#         threading.Thread.__init__(self)
-#         self.result = None
-#         self.event = threading.Event()
-#         self._list = []
+class INAEXT(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.result = None
+        self.event = threading.Event()
+        self._list = []
 
-#     def run(self):
-#         try:
-#             while not self.event.is_set():
-#                 from ina219 import INA219
-#                 ina = INA219(0.1)
-#                 ina.configure()
-#                 power_ = ina.power()
-#                 if power_ > 0.0:
-#                     self._list.append(power_)
-#             self.event.clear()
-#             res = sum(self._list) / len(self._list)
-#             self.result = res, self._list
-#         except:
-#             self.result = 0, self._list
+    def run(self):
+        try:
+            while not self.event.is_set():
+                from ina219 import INA219
+                ina = INA219(0.1)
+                ina.configure()
+                power_ = ina.power()
+                if power_ > 0.0:
+                    self._list.append(power_)
+            self.event.clear()
+            res = sum(self._list) / len(self._list)
+            self.result = res, self._list
+        except:
+            self.result = 0, self._list
 
-#     def stop(self):
-#         self.event.set()
+    def stop(self):
+        self.event.set()
 
 class GetLatency:
     def __init__(self, graph_path='', img=''):
@@ -91,10 +91,11 @@ class GetLatency:
         entire_power = []
         try:
             for line in lines:
-                pattern = r"GR3D_FREQ (\d+)%"
+                pattern = r"GR3D_FREQ (\d+)%@(\d+)"
                 match = re.search(pattern, line)
                 if match:
                     gpu_ = match.group(1)
+                    freq = match.group(2)
                     entire_gpu.append(float(gpu_))
                 pattern = r"POM_5V_IN (\d+)/(\d+)"
                 match = re.search(pattern, line)
@@ -111,7 +112,7 @@ class GetLatency:
             entire_gpu_ = entire_gpu
             entire_power_ = entire_power
 
-        return result_gpu, result_power, entire_gpu_,  entire_power_
+        return result_gpu, result_power, freq, entire_gpu_,  entire_power_
     
     # @profile
     def tflite_benchmark(self, iterations, threads, passwd):
@@ -148,9 +149,9 @@ class GetLatency:
             thread.start()
             if 'tegra' in uname().release:
                 self._jstat_start(passwd)
-            # elif 'rasp' in type:
-            #     ina = INAEXT()
-            #     ina.start()
+            elif check_ina219():
+                ina = INAEXT()
+                ina.start()
             time.sleep(2)
             start = timer()
             interpreter.invoke()
@@ -163,10 +164,10 @@ class GetLatency:
             thread.join()
             if 'tegra' in uname().release:
                 power = float(self._jstat_stop(passwd)[1])
-            # elif 'rasp' in type:
-            #     ina.stop()
-            #     ina.join()
-            #     power = float(ina.result[0])
+            elif check_ina219():
+                ina.stop()
+                ina.join()
+                power = float(ina.result[0])
             else:
                 power = 0
             cpu_percent = float(thread.result[0])
@@ -201,7 +202,7 @@ class GetLatency:
 
                 # retrieve the results
                 mem_res = self._process_memory()
-                gpu, power = self._jstat_stop(passwd)[0:2]
+                gpu, power, freq = self._jstat_stop(passwd)[0:3]
                 elapsed = runner.inference_time * 1000
                 if elapsed < 1000:
                     time.sleep((2000-elapsed)/1000)
@@ -209,13 +210,23 @@ class GetLatency:
                 thread.join()
                 cpu_percent = float(thread.result[0])
 
-                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(power, 2)])
+                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(power, 2), freq])
                 runner.deactivate()
 
                 # clear cache
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
             
         return hwperf
+
+def check_ina219():
+    try:
+        import ina219
+        ina = ina219.INA219(0.1)
+        voltage = ina.voltage()
+        # If the script reaches here without errors, the INA219 is connected
+        return True
+    except:
+        return False
 
 ### RUN CODE FUNC ###
         

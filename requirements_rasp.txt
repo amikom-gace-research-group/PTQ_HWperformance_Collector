@@ -1,7 +1,7 @@
 colored
 pandas
 Pillow
-psutil
+psutil==5.8
 PyYAML
 silence-tensorflow
 tensorflow==2.12
