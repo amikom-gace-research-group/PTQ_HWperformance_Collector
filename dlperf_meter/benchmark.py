@@ -102,7 +102,7 @@ class GetLatency:
                 if match:
                     power_ = match.group(2)
                     entire_power.append(float(power_))
-            entire_gpu_ = [num for num in entire_gpu if num > 0.0]
+            entire_gpu_ = [num for num in entire_gpu if num > 2.0]
             entire_power_ = [num for num in entire_power if num > 0.0]
             result_gpu = sum(entire_gpu_) / len(entire_gpu_)
             result_power = sum(entire_power_) / len(entire_power_)
