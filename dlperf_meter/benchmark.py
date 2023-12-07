@@ -87,6 +87,9 @@ class GPUMem(threading.Thread):
         except:
             self.result = 0, self._list
 
+    def stop(self):
+        self.event.set()
+
 class GetLatency:
     def __init__(self, graph_path='', img=''):
         """
@@ -120,7 +123,7 @@ class GetLatency:
             for line in lines:
                 pattern_pow = r"POM_5V_IN (\d+)/(\d+)"
                 match_pow = re.search(pattern_pow, line)
-                if match:
+                if match_pow:
                     power_ = match_pow.group(2)
                     entire_power.append(float(power_))
                 if type == 'gpu':
