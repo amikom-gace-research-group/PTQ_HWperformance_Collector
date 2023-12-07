@@ -163,5 +163,5 @@ if __name__ == '__main__':
     parser.add_argument('--cgroup_name', help='cgroup name named in cgroup settings', required=True)
     parser.add_argument('--passwd', help='enter the system password to clear the cache', required=True)
     args = parser.parse_args()
-    logging.basicConfig(filename=f'run_scenario_{args.dev_type}.log', filemode='w')
+    logging.basicConfig(filename=f'errorlog.log', filemode='w')
     main(args.passwd, args.model_path, args.dev_type, (int(args.threads) if isinstance(args.threads, int) else None), int(args.iterations), args.cgroup_name)
