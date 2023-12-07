@@ -220,6 +220,7 @@ class GetLatency:
                 power = float(ina.result[0])
             else:
                 power = 0
+                power_cpu = 0
             cpu_percent = float(cpu.result[0])
             hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), float(cpu_freq)])
             if 'tegra' in uname().release:
