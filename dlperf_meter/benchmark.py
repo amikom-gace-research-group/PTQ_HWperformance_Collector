@@ -110,7 +110,7 @@ class GetLatency:
 
     def _jstat_stop(self, type, passwd):
         subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --stop', shell=True)
-        out = open("test.txt", 'r')
+        out = open(f"tegrastats_{os.getpid()}.txt", 'r')
         lines = out.read().split('\n')
         entire_gpu = []
         entire_power = []
@@ -220,7 +220,8 @@ class GetLatency:
                 power = 0
             cpu_percent = float(cpu.result[0])
             hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), cpu_freq])
-
+            if 'tegra' in uname().release:
+                subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
             # clear cache
             os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
 
