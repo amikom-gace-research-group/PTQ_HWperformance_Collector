@@ -126,6 +126,11 @@ class GetLatency:
                 if match_pow:
                     power_ = match_pow.group(2)
                     entire_power.append(float(power_))
+                pattern_pow_cpu = r"POM_5V_CPU (\d+)/(\d+)"
+                match_pow_cpu = re.search(pattern_pow_cpu, line)
+                if match_pow_cpu:
+                    power_cpu_ = match_pow_cpu.group(2)
+                    entire_power_cpu.append(float(power_cpu_))
                 if type == 'gpu':
                     pattern_gpu = r"GR3D_FREQ (\d+)%@(\d+)"
                     match_gpu = re.search(pattern_gpu, line)
@@ -138,16 +143,10 @@ class GetLatency:
                     if match_pow_gpu:
                         power_gpu_ = match_pow_gpu.group(2)
                         entire_power_gpu.append(float(power_gpu_))
-                elif type == 'cpu':
-                    pattern_pow_cpu = r"POM_5V_CPU (\d+)/(\d+)"
-                    match_pow_cpu = re.search(pattern_pow_cpu, line)
-                    if match_pow_cpu:
-                        power_gpu_ = match_pow_cpu.group(2)
-                        entire_power_gpu.append(float(power_gpu_))
-            entire_gpu_ = [num for num in entire_gpu if num > 0.0]
-            entire_power_ = [num for num in entire_power if num > 0.0]
-            entire_power_gpu_ = [num for num in entire_power_gpu if num > 0.0]
-            entire_power_cpu_ = [num for num in entire_power_cpu if num > 0.0]
+            entire_gpu_ = [num for num in entire_gpu if num > 2.0]
+            entire_power_ = [num for num in entire_power if num > 2.0]
+            entire_power_gpu_ = [num for num in entire_power_gpu if num > 2.0]
+            entire_power_cpu_ = [num for num in entire_power_cpu if num > 2.0]
             result_gpu = sum(entire_gpu_) / len(entire_gpu_)
             result_power = sum(entire_power_) / len(entire_power_)
             result_power_gpu = sum(entire_power_gpu_) / len(entire_power_gpu_)
@@ -222,7 +221,7 @@ class GetLatency:
             else:
                 power = 0
             cpu_percent = float(cpu.result[0])
-            hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), cpu_freq])
+            hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), float(cpu_freq)])
             if 'tegra' in uname().release:
                 subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
             # clear cache
