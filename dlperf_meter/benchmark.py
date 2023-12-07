@@ -106,7 +106,7 @@ class GetLatency:
         return mem_info 
 
     def _jstat_start(self, passwd):
-        subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --interval 10 --start --logfile test.txt', shell=True)
+        subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --interval 10 --start --logfile tegrastats_{os.getpid()}.txt', shell=True)
 
     def _jstat_stop(self, type, passwd):
         subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --stop', shell=True)
@@ -266,7 +266,7 @@ class GetLatency:
 
                 hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), cpu_freq, gpu_freq])
                 runner.deactivate()
-
+                subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
                 # clear cache
                 os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
             
@@ -311,6 +311,5 @@ if __name__ == '__main__':
         data = main_tflite(args.model, int(args.iterations), args.type, (int(args.threads) if isinstance(args.threads, int) else None), args.passwd)
     elif 'gpu' in args.type:
         data = main_tensorrt(args.model, int(args.iterations), args.type, args.passwd)
-        subprocess.check_output('rm test.txt', shell=True)
     
     print(data)
