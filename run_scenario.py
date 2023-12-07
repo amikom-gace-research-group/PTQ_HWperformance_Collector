@@ -10,18 +10,15 @@ import subprocess
 from platform import uname
 from dlperf_meter.benchmark import check_ina219
 
-# warm-up cpu freq
-psutil.cpu_count()
-
 def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name):
     print(f"Physical Memory Limit : {memaloc}Mb")
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
     os.system(f'echo {passwd} | sudo -S su -c "echo {memaloc}M > /sys/fs/cgroup/memory/{cgroup_name}/memory.limit_in_bytes"')
     if 'gpu' in dev_type:
-        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'CPU Cores':[psutil.cpu_count()], 'CPU Freq (MHz)':[psutil.cpu_freq().current], 'GPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[], 'Warmup-Power (mW)':[], 'Warmup-GPU Usage (%)':[]}
+        template = {'Model':[model_name], 'Memory Allocation (MB)':[memaloc], 'Model Size (MB)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'CPU Cores':[psutil.cpu_count()], 'Warmup-CPU Freq (MHz)':[], 'Warmup-GPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (MB)':[], 'Warmup-Mem Swap Usage (MB)':[], 'Warmup-Mem GPU Usage (MB)':[], 'Warmup-Power (mW)':[], 'Warmup-Power CPU (mW)':[], 'Warmup-Power GPU (mW)':[], 'Warmup-GPU Usage (%)':[]}
     else:
-        template = {'Model':[model_name], 'Memory Allocation (Mb)':[memaloc], 'Model Size (Mb)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'CPU Cores':[psutil.cpu_count()], 'CPU Freq (MHz)':[psutil.cpu_freq().current], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (Mb)':[], 'Warmup-Mem PSS Usage (Mb)':[], 'Warmup-Mem USS Usage (Mb)':[]}
+        template = {'Model':[model_name], 'Memory Allocation (MB)':[memaloc], 'Model Size (MB)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'CPU Cores':[psutil.cpu_count()], 'Warmup-CPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (MB)':[], 'Warmup-Mem Swap Usage (MB)':[]}
     time.sleep(10)
     print('iterations :', iterations)
     cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlperf_meter/benchmark.py --model {model_path} --type {dev_type} --threads {threads} --iterations {iterations} --passwd {passwd}', shell=True)
@@ -32,58 +29,77 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
             if idx == 0:
                 template['Warmup-Latency (ms)'].append(float(j[0]))
                 template['Warmup-CPU Usage (%)'].append(float(j[1]))
-                template['Warmup-Mem RSS Usage (Mb)'].append(float(j[2][0]))
-                template['Warmup-Mem PSS Usage (Mb)'].append(float(j[2][1]))
-                template['Warmup-Mem USS Usage (Mb)'].append(float(j[2][2]))
+                template['Warmup-Mem RSS Usage (MB)'].append(float(j[2][0]))
+                template['Warmup-Mem Swap Usage (MB)'].append(float(j[2][1]))
+                template['Warmup-CPU Freq (MHz)'].append(float(j[5]))
                 if 'tegra' in uname().release or check_ina219():
                     if 'Warmup-Power (mW)' not in template:
                         template['Warmup-Power (mW)'] = []
+                    if 'tegra' in uname().release:
+                        if 'Warmup-Power CPU (mW)' not in template:
+                            template['Warmup-Power CPU (mW)'] = []
+                        template['Warmup-Power CPU (mW)'].append(float(j[4]))
                     template['Warmup-Power (mW)'].append(float(j[3]))
             else:
                 if f'Latency {idx} (ms)' not in template:
                     template[f'Latency {idx} (ms)'] = []
-                    template[f'CPU Usage (Lat-{idx}) (%)'] = []
-                    template[f'Memory RSS Usage (Lat-{idx}) (Mb)'] = []
-                    template[f'Memory PSS Usage (Lat-{idx}) (Mb)'] = []
-                    template[f'Memory USS Usage (Lat-{idx}) (Mb)'] = []
+                    template[f'CPU Usage (iter-{idx}) (%)'] = []
+                    template[f'Memory RSS Usage (iter-{idx}) (MB)'] = []
+                    template[f'Memory Swap Usage (iter-{idx}) (MB)'] = []
+                    template[f'CPU Freq (iter-{idx}) (MHz)'] = []
                     if 'tegra' in uname().release or check_ina219():
-                        if f'Power (Lat-{idx}) (mW)' not in template:
-                            template[f'Power (Lat-{idx}) (mW)'] = []
-                        template[f'Power (Lat-{idx}) (mW)'].append(float(j[3]))
+                        if f'Power (iter-{idx}) (mW)' not in template:
+                            template[f'Power (iter-{idx}) (mW)'] = []
+                        if 'tegra' in uname().release:
+                            if f'Power CPU (iter-{idx}) (mW)' not in template:
+                                template[f'Power CPU (iter-{idx}) (mW)'] = []
+                            template[f'Power CPU (iter-{idx}) (mW)'].append(float(j[4]))
+                        template[f'Power (iter-{idx}) (mW)'].append(float(j[3]))
                 template[f'Latency {idx} (ms)'].append(float(j[0]))
-                template[f'CPU Usage (Lat-{idx}) (%)'].append(float(j[1]))
-                template[f'Memory RSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][0]))
-                template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][1]))
-                template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[2][2]))
+                template[f'CPU Usage (iter-{idx}) (%)'].append(float(j[1]))
+                template[f'Memory RSS Usage (iter-{idx}) (MB)'].append(float(j[2][0]))
+                template[f'Memory Swap Usage (iter-{idx}) (MB)'].append(float(j[2][1]))
+                template[f'CPU Freq (iter-{idx}) (MHz)'].append(float(j[5]))
         elif 'gpu' in dev_type:
             if idx == 0:
-                template['GPU Freq (MHz)'].append(j[5])
+                template['Warmup-GPU Freq (MHz)'].append(j[9])
+                template['Warmup-CPU Freq (MHz)'].append(j[8])
                 template['Warmup-Latency (ms)'].append(float(j[0]))
                 template['Warmup-GPU Usage (%)'].append(float(j[3]))
                 template['Warmup-CPU Usage (%)'].append(float(j[1]))
-                template['Warmup-Mem RSS Usage (Mb)'].append(float(j[2][0]))
-                template['Warmup-Mem PSS Usage (Mb)'].append(float(j[2][1]))
-                template['Warmup-Mem USS Usage (Mb)'].append(float(j[2][2]))
+                template['Warmup-Mem RSS Usage (MB)'].append(float(j[2][0]))
+                template['Warmup-Mem Swap Usage (MB)'].append(float(j[2][1]))
+                template['Warmup-Mem GPU Usage (MB)'].append(float(j[7]))
                 template['Warmup-Power (mW)'].append(float(j[4]))
+                template['Warmup-Power CPU (mW)'].append(float(j[5]))
+                template['Warmup-Power GPU (mW)'].append(float(j[6]))
             else:
                 if f'Latency {idx} (ms)' not in template:
+                    template[f'CPU Freq (iter-{idx}) (MHz)'] = []
+                    template[f'GPU Freq (iter-{idx}) (MHz)'] = []
                     template[f'Latency {idx} (ms)'] = []
-                    template[f'CPU Usage (Lat-{idx}) (%)'] = []
-                    template[f'Memory RSS Usage (Lat-{idx}) (Mb)'] = []
-                    template[f'Memory PSS Usage (Lat-{idx}) (Mb)'] = []
-                    template[f'Memory USS Usage (Lat-{idx}) (Mb)'] = []
-                    template[f'GPU Usage (Lat-{idx}) (%)'] = []
-                    template[f'Power (Lat-{idx}) (mW)'] = []
+                    template[f'CPU Usage (iter-{idx}) (%)'] = []
+                    template[f'Memory RSS Usage (iter-{idx}) (MB)'] = []
+                    template[f'Memory Swap Usage (iter-{idx}) (MB)'] = []
+                    template[f'Memory GPU Usage (iter-{idx}) (MB)'] = []
+                    template[f'GPU Usage (iter-{idx}) (%)'] = []
+                    template[f'Power (iter-{idx}) (mW)'] = []
+                    template[f'Power CPU (iter-{idx}) (mW)'] = []
+                    template[f'Power GPU (iter-{idx}) (mW)'] = []
+                template[f'CPU Freq (iter-{idx}) (MHz)'].append(float(j[8]))
+                template[f'GPU Freq (iter-{idx}) (MHz)'].append(float(j[9]))
                 template[f'Latency {idx} (ms)'].append(float(j[0]))
-                template[f'GPU Usage (Lat-{idx}) (%)'].append(float(j[3]))
-                template[f'CPU Usage (Lat-{idx}) (%)'].append(float(j[1]))
-                template[f'Memory RSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][0]))
-                template[f'Memory PSS Usage (Lat-{idx}) (Mb)'].append(float(j[2][1]))
-                template[f'Memory USS Usage (Lat-{idx}) (Mb)'].append(float(j[2][2]))
-                template[f'Power (Lat-{idx}) (mW)'].append(float(j[4]))
+                template[f'GPU Usage (iter-{idx}) (%)'].append(float(j[3]))
+                template[f'CPU Usage (iter-{idx}) (%)'].append(float(j[1]))
+                template[f'Memory RSS Usage (iter-{idx}) (MB)'].append(float(j[2][0]))
+                template[f'Memory Swap Usage (iter-{idx}) (MB)'].append(float(j[2][1]))
+                template[f'Memory GPU Usage (iter-{idx}) (MB)'].append(float(j[7]))
+                template[f'Power (iter-{idx}) (mW)'].append(float(j[4]))
+                template[f'Power CPU (iter-{idx}) (mW)'].append(float(j[5]))
+                template[f'Power GPU (iter-{idx}) (mW)'].append(float(j[6]))
 
     df = pd.DataFrame(template)
-    output_path=f'dlperf_{dev_type}.csv'
+    output_path=f'dlperf_{dev_type}_{uname().release}.csv'
     if os.path.exists(output_path):
         df.to_csv(output_path, mode='a', header=False)
     else: df.to_csv(output_path)
