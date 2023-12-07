@@ -267,7 +267,7 @@ class GetLatency:
                 cpu_percent = float(cpu.result[0])
                 gpu_mem = float(gmem.result[0])
 
-                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), cpu_freq, gpu_freq])
+                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), round(float(cpu_freq), 2), round(float(gpu_freq), 2)])
                 runner.deactivate()
                 subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
                 # clear cache
