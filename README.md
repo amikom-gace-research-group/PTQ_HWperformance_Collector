@@ -76,7 +76,7 @@ optional arguments:
 ```
 
 ## Test the benchmark ?
-Call `dlpref_meter/benchmark.py` in `main` folder
+Call `dlpref_meter/benchmark.py` in `main` folder by root
 
 ```
 usage: benchmark.py [-h] --model MODEL --type TYPE [--threads THREADS] [--iterations ITERATIONS] --passwd PASSWD

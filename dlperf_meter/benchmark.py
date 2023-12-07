@@ -52,7 +52,8 @@ class INAEXT(threading.Thread):
                 ina.configure()
                 power_ = ina.power()
                 if power_ > 0.0:
-                    self._list.append(power_)
+                    with threading.Lock():
+                        self._list.append(power_)
             self.event.clear()
             res = sum(self._list) / len(self._list)
             self.result = res, self._list
@@ -61,6 +62,30 @@ class INAEXT(threading.Thread):
 
     def stop(self):
         self.event.set()
+
+class GPUMem(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.result = None
+        self.event = threading.Event()
+        self._list = []
+
+    def run(self):
+        try:
+            while not self.event.is_set():
+                pattern = re.compile(rf"{os.getpid()}\s+(\d+)K")
+                with open("/sys/kernel/debug/nvmap/iovmm/maps", "r") as fp:
+                    content = fp.read()
+                    match = pattern.search(content)
+                    if match:
+                        with threading.Lock():
+                            self._list.append(float(match.group(1))/1024)
+                    
+            self.event.clear()
+            res = sum(self._list) / len(self._list)
+            self.result = res, self._list
+        except:
+            self.result = 0, self._list
 
 class GetLatency:
     def __init__(self, graph_path='', img=''):
@@ -83,39 +108,61 @@ class GetLatency:
     def _jstat_start(self, passwd):
         subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --interval 10 --start --logfile test.txt', shell=True)
 
-    def _jstat_stop(self, passwd):
+    def _jstat_stop(self, type, passwd):
         subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --stop', shell=True)
         out = open("test.txt", 'r')
         lines = out.read().split('\n')
         entire_gpu = []
         entire_power = []
+        entire_power_gpu = []
+        entire_power_cpu = []
         try:
             for line in lines:
-                pattern = r"GR3D_FREQ (\d+)%@(\d+)"
-                match = re.search(pattern, line)
+                pattern_pow = r"POM_5V_IN (\d+)/(\d+)"
+                match_pow = re.search(pattern_pow, line)
                 if match:
-                    gpu_ = match.group(1)
-                    freq = match.group(2)
-                    entire_gpu.append(float(gpu_))
-                pattern = r"POM_5V_IN (\d+)/(\d+)"
-                match = re.search(pattern, line)
-                if match:
-                    power_ = match.group(2)
+                    power_ = match_pow.group(2)
                     entire_power.append(float(power_))
+                if type == 'gpu':
+                    pattern_gpu = r"GR3D_FREQ (\d+)%@(\d+)"
+                    match_gpu = re.search(pattern_gpu, line)
+                    if match_gpu:
+                        gpu_ = match_gpu.group(1)
+                        freq = match_gpu.group(2)
+                        entire_gpu.append(float(gpu_))
+                    pattern_pow_gpu = r"POM_5V_GPU (\d+)/(\d+)"
+                    match_pow_gpu = re.search(pattern_pow_gpu, line)
+                    if match_pow_gpu:
+                        power_gpu_ = match_pow_gpu.group(2)
+                        entire_power_gpu.append(float(power_gpu_))
+                elif type == 'cpu':
+                    pattern_pow_cpu = r"POM_5V_CPU (\d+)/(\d+)"
+                    match_pow_cpu = re.search(pattern_pow_cpu, line)
+                    if match_pow_cpu:
+                        power_gpu_ = match_pow_cpu.group(2)
+                        entire_power_gpu.append(float(power_gpu_))
             entire_gpu_ = [num for num in entire_gpu if num > 2.0]
-            entire_power_ = [num for num in entire_power if num > 0.0]
+            entire_power_ = [num for num in entire_power if num > 2.0]
+            entire_power_gpu_ = [num for num in entire_power_gpu if num > 2.0]
+            entire_power_cpu_ = [num for num in entire_power_cpu if num > 2.0]
             result_gpu = sum(entire_gpu_) / len(entire_gpu_)
             result_power = sum(entire_power_) / len(entire_power_)
+            result_power_gpu = sum(entire_power_gpu_) / len(entire_power_gpu_)
+            result_power_cpu = sum(entire_power_cpu_) / len(entire_power_cpu_)
         except:
             result_gpu = 0
             result_power = 0
+            result_power_cpu = 0
+            result_power_gpu = 0
             entire_gpu_ = entire_gpu
             entire_power_ = entire_power
+            entire_power_cpu_ = entire_power_cpu
+            entire_power_gpu_ = entire_power_gpu
 
-        return result_gpu, result_power, freq, entire_gpu_,  entire_power_
+        return result_gpu, result_power, freq, result_power_cpu, result_power_gpu, entire_gpu_,  entire_power_, entire_power_cpu_, entire_power_gpu_
     
     # @profile
-    def tflite_benchmark(self, iterations, threads, passwd):
+    def tflite_benchmark(self, iterations, dev_type, threads, passwd):
         import tensorflow as tf
         interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=threads)
         interpreter.allocate_tensors()
@@ -145,8 +192,8 @@ class GetLatency:
 
         for i in np.arange(iterations+1):
             # Run inference.
-            thread = CPU()
-            thread.start()
+            cpu = CPU()
+            cpu.start()
             if 'tegra' in uname().release:
                 self._jstat_start(passwd)
             elif check_ina219():
@@ -160,25 +207,26 @@ class GetLatency:
             elapsed = ((end - start) * 1000)
             if elapsed < 1000:
                 time.sleep((2000-elapsed)/1000)
-            thread.stop()
-            thread.join()
+            cpu_freq = psutil.cpu_freq().current
+            cpu.stop()
+            cpu.join()
             if 'tegra' in uname().release:
-                power = float(self._jstat_stop(passwd)[1])
+                power, _, power_cpu = self._jstat_stop(dev_type, passwd)[1:4]
             elif check_ina219():
                 ina.stop()
                 ina.join()
                 power = float(ina.result[0])
             else:
                 power = 0
-            cpu_percent = float(thread.result[0])
-            hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(power, 2)])
+            cpu_percent = float(cpu.result[0])
+            hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), cpu_freq])
 
             # clear cache
             os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
 
         return hwperf
     
-    def tensorrt_benchmark(self, iterations, passwd):
+    def tensorrt_benchmark(self, iterations, dev_type, passwd):
         from polygraphy.backend.common import BytesFromPath
         from polygraphy.backend.trt import EngineFromBytes, TrtRunner
         from polygraphy.logger import G_LOGGER
@@ -195,22 +243,28 @@ class GetLatency:
             for i in np.arange(iterations+1):
                 runner.activate()
                 self._jstat_start(passwd)
-                thread = CPU()
-                thread.start()
+                cpu = CPU()
+                gmem = GPUMem()
+                cpu.start()
+                gmem.start()
                 time.sleep(2)
                 runner.infer(feed_dict={'input_1': input_data})
 
                 # retrieve the results
                 mem_res = self._process_memory()
-                gpu, power, freq = self._jstat_stop(passwd)[0:3]
+                gpu, power, gpu_freq, power_cpu, power_gpu = self._jstat_stop(dev_type, passwd)[0:5]
                 elapsed = runner.inference_time * 1000
                 if elapsed < 1000:
                     time.sleep((2000-elapsed)/1000)
-                thread.stop()
-                thread.join()
-                cpu_percent = float(thread.result[0])
+                cpu_freq = psutil.cpu_freq().current
+                cpu.stop()
+                gmem.stop()
+                cpu.join()
+                gmem.join()
+                cpu_percent = float(cpu.result[0])
+                gpu_mem = float(gmem.result[0])
 
-                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.pss/1024**2, 2), round(mem_res.uss/1024**2, 2)], round(gpu, 2), round(power, 2), freq])
+                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), cpu_freq, gpu_freq])
                 runner.deactivate()
 
                 # clear cache
@@ -230,15 +284,15 @@ def check_ina219():
 
 ### RUN CODE FUNC ###
         
-def main_tflite(model, iterations, threads, passwd):
+def main_tflite(model, iterations, dev_type, threads, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    hwperf = setup.tflite_benchmark(iterations, threads, passwd)
+    hwperf = setup.tflite_benchmark(iterations, dev_type, threads, passwd)
 
     return hwperf
 
-def main_tensorrt(model, iterations, passwd):
+def main_tensorrt(model, iterations, dev_type, passwd):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    hwperf = setup.tensorrt_benchmark(iterations, passwd)
+    hwperf = setup.tensorrt_benchmark(iterations, dev_type, passwd)
     
     return hwperf
 
@@ -254,9 +308,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if 'cpu' in args.type:
-        data = main_tflite(args.model, int(args.iterations), (int(args.threads) if isinstance(args.threads, int) else None), args.passwd)
+        data = main_tflite(args.model, int(args.iterations), args.type, (int(args.threads) if isinstance(args.threads, int) else None), args.passwd)
     elif 'gpu' in args.type:
-        data = main_tensorrt(args.model, int(args.iterations), args.passwd)
+        data = main_tensorrt(args.model, int(args.iterations), args.type, args.passwd)
         subprocess.check_output('rm test.txt', shell=True)
     
     print(data)
