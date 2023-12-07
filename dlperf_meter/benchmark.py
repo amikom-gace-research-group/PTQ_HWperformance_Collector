@@ -119,6 +119,7 @@ class GetLatency:
         entire_power = []
         entire_power_gpu = []
         entire_power_cpu = []
+        freq = 0
         try:
             for line in lines:
                 pattern_pow = r"POM_5V_IN (\d+)/(\d+)"
