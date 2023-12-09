@@ -10,18 +10,29 @@ import subprocess
 from platform import uname
 from dlperf_meter.benchmark import check_ina219
 
-def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name):
+def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, iterations : int, cgroup_name : str):
     print(f"Physical Memory Limit : {memaloc}Mb")
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
-    os.system(f'echo {passwd} | sudo -S su -c "echo {memaloc}M > /sys/fs/cgroup/memory/{cgroup_name}/memory.limit_in_bytes"')
+    memory_limit_command = [
+    "sudo", "su", "-c", f"echo {memaloc}M > /sys/fs/cgroup/memory/{cgroup_name}/memory.limit_in_bytes"
+    ]
+    subprocess.run(memory_limit_command, input=passwd, text=True)
     if 'gpu' in dev_type:
         template = {'Model':[model_name], 'Memory Allocation (MB)':[memaloc], 'Model Size (MB)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'CPU Cores':[psutil.cpu_count()], 'Warmup-CPU Freq (MHz)':[], 'Warmup-GPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (MB)':[], 'Warmup-Mem Swap Usage (MB)':[], 'Warmup-Mem GPU Usage (MB)':[], 'Warmup-Power (mW)':[], 'Warmup-Power CPU (mW)':[], 'Warmup-Power GPU (mW)':[], 'Warmup-GPU Usage (%)':[]}
     else:
         template = {'Model':[model_name], 'Memory Allocation (MB)':[memaloc], 'Model Size (MB)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'CPU Cores':[psutil.cpu_count()], 'Warmup-CPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (MB)':[], 'Warmup-Mem Swap Usage (MB)':[]}
     time.sleep(10)
     print('iterations :', iterations)
-    cmd = subprocess.check_output(f'echo {passwd} | sudo -S cgexec -g memory:{cgroup_name} python3 dlperf_meter/benchmark.py --model {model_path} --type {dev_type} --threads {threads} --iterations {iterations} --passwd {passwd}', shell=True)
+    benchmark_command = [
+    "sudo", "cgexec", "-g", f"memory:{cgroup_name}",
+    "python3", "dlperf_meter/benchmark.py",
+    "--model", model_path,
+    "--type", dev_type,
+    "--threads", threads,
+    "--iterations", iterations
+    ]
+    cmd = subprocess.run(benchmark_command, input=passwd, capture_output=True, text=True).stdout
     res = cmd.decode('utf-8')
     data = ast.literal_eval(res)
     for idx, j in enumerate(data):
@@ -105,28 +116,37 @@ def run(memaloc, passwd, model_path, dev_type, threads, iterations, cgroup_name)
     else: df.to_csv(output_path)
     print('='*25)
 
-def main(passwd, model_path, dev_type, threads, iterations, cgroup_name):
+def main(passwd : str, model_path : str, dev_type: str, threads, iterations : int, cgroup_name : str):
     with open('scenario.yml', 'r') as yml:
         scenarios = yaml.safe_load(yml)
     for g in np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
         for _ in np.arange(10):
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
-                os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                sync_command = ["sudo", "sync"]
+                subprocess.run(sync_command, input=passwd, text=True)
+                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
+                subprocess.run(drop_caches_command, input=passwd, text=True)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for k in reversed(np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
         for _ in np.arange(10):
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
-                os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                sync_command = ["sudo", "sync"]
+                subprocess.run(sync_command, input=passwd, text=True)
+                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
+                subprocess.run(drop_caches_command, input=passwd, text=True)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for l in np.arange(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
         for _ in np.arange(10):
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
-                os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                sync_command = ["sudo", "sync"]
+                subprocess.run(sync_command, input=passwd, text=True)
+                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
+                subprocess.run(drop_caches_command, input=passwd, text=True)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
                 
@@ -154,6 +174,7 @@ def jetson_stat():
 
 if __name__ == '__main__':
     import argparse
+    import configparser
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', help='Path of the model', required=True)
@@ -161,7 +182,9 @@ if __name__ == '__main__':
     parser.add_argument('--threads', help='num_threads (just for tflite)', default=None)
     parser.add_argument('--iterations', help='how many model runs (not including warm-up)', required=True)
     parser.add_argument('--cgroup_name', help='cgroup name named in cgroup settings', required=True)
-    parser.add_argument('--passwd', help='enter the system password to clear the cache', required=True)
+    config = configparser.ConfigParser()
+    config.read("._config.ini")
+    _passwd = config.get("Credentials", "password")
     args = parser.parse_args()
     logging.basicConfig(filename=f'errorlog.log', filemode='w')
-    main(args.passwd, args.model_path, args.dev_type, (int(args.threads) if isinstance(args.threads, int) else None), int(args.iterations), args.cgroup_name)
+    main(_passwd, args.model_path, args.dev_type, (int(args.threads) if isinstance(args.threads, int) else None), int(args.iterations), args.cgroup_name)

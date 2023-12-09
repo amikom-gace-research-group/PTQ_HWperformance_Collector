@@ -109,10 +109,10 @@ class GetLatency:
         return mem_info 
 
     def _jstat_start(self, passwd):
-        subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --interval 10 --start --logfile tegrastats_{os.getpid()}.txt', shell=True)
+        subprocess.run(["sudo", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}.txt"], input=passwd, text=True)
 
     def _jstat_stop(self, type, passwd):
-        subprocess.check_output(f'echo {passwd} | sudo -S tegrastats --stop', shell=True)
+        subprocess.run(["sudo", "tegrastats", "--stop"], input=passwd, text=True)
         out = open(f"tegrastats_{os.getpid()}.txt", 'r')
         lines = out.read().split('\n')
         entire_gpu = []
@@ -227,7 +227,10 @@ class GetLatency:
             if 'tegra' in uname().release:
                 subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
             # clear cache
-            os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+            sync_command = ["sudo", "sync"]
+            subprocess.run(sync_command, input=passwd, text=True)
+            drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
+            subprocess.run(drop_caches_command, input=passwd, text=True)
 
         return hwperf
     
@@ -273,7 +276,10 @@ class GetLatency:
                 runner.deactivate()
                 subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
                 # clear cache
-                os.system(f"echo {args.passwd} | sudo -S sync; sudo -S su -c 'echo 3 > /proc/sys/vm/drop_caches'")
+                sync_command = ["sudo", "sync"]
+                subprocess.run(sync_command, input=passwd, text=True)
+                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
+                subprocess.run(drop_caches_command, input=passwd, text=True)
             
         return hwperf
 
@@ -289,13 +295,13 @@ def check_ina219():
 
 ### RUN CODE FUNC ###
         
-def main_tflite(model, iterations, dev_type, threads, passwd):
+def main_tflite(model : str, iterations : int, dev_type : str, threads, passwd : str):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
     hwperf = setup.tflite_benchmark(iterations, dev_type, threads, passwd)
 
     return hwperf
 
-def main_tensorrt(model, iterations, dev_type, passwd):
+def main_tensorrt(model : str, iterations : int, dev_type : str, passwd : str):
     setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
     hwperf = setup.tensorrt_benchmark(iterations, dev_type, passwd)
     
@@ -303,18 +309,21 @@ def main_tensorrt(model, iterations, dev_type, passwd):
 
 if __name__ == '__main__':
     import argparse
+    import configparser
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help='Path of the detection model', required=True)
     parser.add_argument('--type', help='device types', required=True)
     parser.add_argument('--threads', help='num_threads (just for tflite)', default=None)
     parser.add_argument('--iterations', help='how many model runs (auto add warmup once)', default=1)
-    parser.add_argument('--passwd', help='user password', required=True)
+    config = configparser.ConfigParser()
+    config.read("._config.ini")
+    _passwd = config.get("Credentials", "password")
     args = parser.parse_args()
     
     if 'cpu' in args.type:
-        data = main_tflite(args.model, int(args.iterations), args.type, (int(args.threads) if isinstance(args.threads, int) else None), args.passwd)
+        data = main_tflite(args.model, int(args.iterations), args.type, (int(args.threads) if isinstance(args.threads, int) else None), _passwd)
     elif 'gpu' in args.type:
-        data = main_tensorrt(args.model, int(args.iterations), args.type, args.passwd)
+        data = main_tensorrt(args.model, int(args.iterations), args.type, _passwd)
     
     print(data)

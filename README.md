@@ -60,7 +60,7 @@ Tips : run the program with `nohup` and background job (`&`). Log save in `run_s
 
 ```
 usage: run_scenario.py [-h] --model_path MODEL_PATH --dev_type DEV_TYPE [--threads THREADS] --iterations ITERATIONS --cgroup_name
-                       CGROUP_NAME --passwd PASSWD
+                       CGROUP_NAME
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -72,14 +72,15 @@ optional arguments:
                         how many model runs (not including warm-up)
   --cgroup_name CGROUP_NAME
                         cgroup name named in cgroup settings
-  --passwd PASSWD       enter the system password to clear the cache
 ```
+
+Save password in `._config.ini` for the example
 
 ## Test the benchmark ?
 Call `dlpref_meter/benchmark.py` in `main` folder by root
 
 ```
-usage: benchmark.py [-h] --model MODEL --type TYPE [--threads THREADS] [--iterations ITERATIONS] --passwd PASSWD
+usage: benchmark.py [-h] --model MODEL --type TYPE [--threads THREADS] [--iterations ITERATIONS]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -88,5 +89,4 @@ optional arguments:
   --threads THREADS     num_threads (just for tflite)
   --iterations ITERATIONS
                         how many model runs (auto add warmup once)
-  --passwd PASSWD       user password
 ```
