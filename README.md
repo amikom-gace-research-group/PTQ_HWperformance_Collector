@@ -81,6 +81,13 @@ Save password in `._config.ini` for the example
 password = your_secure_password
 ```
 
+After clone, make sure the owner folder level is 700 and for ini file is 600
+
+```bash
+chmod 700 DLperformance_Collector
+chmod 600 ._config.ini
+```
+
 ## Test the benchmark ?
 Call `dlpref_meter/benchmark.py` in `main` folder by root
 
