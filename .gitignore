@@ -3,4 +3,6 @@ test.txt
 *.csv
 *.log
 *.out
+*.ini
+*.pyc
 models/

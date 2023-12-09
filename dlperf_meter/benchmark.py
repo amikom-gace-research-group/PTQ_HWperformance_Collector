@@ -148,10 +148,10 @@ class GetLatency:
             entire_power_ = [num for num in entire_power if num > 2.0]
             entire_power_gpu_ = [num for num in entire_power_gpu if num > 2.0]
             entire_power_cpu_ = [num for num in entire_power_cpu if num > 2.0]
-            result_gpu = sum(entire_gpu_) / len(entire_gpu_)
-            result_power = sum(entire_power_) / len(entire_power_)
-            result_power_gpu = sum(entire_power_gpu_) / len(entire_power_gpu_)
-            result_power_cpu = sum(entire_power_cpu_) / len(entire_power_cpu_)
+            result_gpu = sum(entire_gpu_) / len(entire_gpu_) if entire_gpu_ else 0
+            result_power = sum(entire_power_) / len(entire_power_) if entire_power_ else 0
+            result_power_gpu = sum(entire_power_gpu_) / len(entire_power_gpu_) if entire_power_gpu_ else 0
+            result_power_cpu = sum(entire_power_cpu_) / len(entire_power_cpu_) if entire_power_cpu_ else 0
         except:
             result_gpu = 0
             result_power = 0
