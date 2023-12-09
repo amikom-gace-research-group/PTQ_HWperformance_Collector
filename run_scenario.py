@@ -29,7 +29,7 @@ def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, 
     "python3", "dlperf_meter/benchmark.py",
     "--model", model_path,
     "--type", dev_type,
-    "--iterations", iterations
+    "--iterations", str(iterations)
     ]
     # Include threads in the command if it's not None
     if threads is not None:
