@@ -29,9 +29,11 @@ def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, 
     "python3", "dlperf_meter/benchmark.py",
     "--model", model_path,
     "--type", dev_type,
-    "--threads", threads,
     "--iterations", iterations
     ]
+    # Include threads in the command if it's not None
+    if threads is not None:
+        benchmark_command.extend(["--threads", threads])
     cmd = subprocess.run(benchmark_command, input=passwd, stdout=subprocess.PIPE, universal_newlines=True).stdout
     res = cmd.decode('utf-8')
     data = ast.literal_eval(res)
