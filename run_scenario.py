@@ -35,8 +35,7 @@ def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, 
     if threads is not None:
         benchmark_command.extend(["--threads", threads])
     cmd = subprocess.run(benchmark_command, input=passwd, stdout=subprocess.PIPE, universal_newlines=True).stdout
-    res = cmd.decode('utf-8')
-    data = ast.literal_eval(res)
+    data = ast.literal_eval(cmd)
     for idx, j in enumerate(data):
         if 'cpu' in dev_type:
             if idx == 0:
