@@ -109,10 +109,10 @@ class GetLatency:
         return mem_info 
 
     def _jstat_start(self, passwd):
-        subprocess.run(["sudo", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}.txt"], input=passwd, , universal_newlines=True)
+        subprocess.run(["sudo", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}.txt"], input=passwd, universal_newlines=True)
 
     def _jstat_stop(self, type, passwd):
-        subprocess.run(["sudo", "tegrastats", "--stop"], input=passwd, , universal_newlines=True)
+        subprocess.run(["sudo", "tegrastats", "--stop"], input=passwd, universal_newlines=True)
         out = open(f"tegrastats_{os.getpid()}.txt", 'r')
         lines = out.read().split('\n')
         entire_gpu = []
@@ -228,9 +228,9 @@ class GetLatency:
                 subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
             # clear cache
             sync_command = ["sudo", "sync"]
-            subprocess.run(sync_command, input=passwd, , universal_newlines=True)
+            subprocess.run(sync_command, input=passwd, universal_newlines=True)
             drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-            subprocess.run(drop_caches_command, input=passwd, , universal_newlines=True)
+            subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
 
         return hwperf
     
@@ -277,9 +277,9 @@ class GetLatency:
                 subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
                 # clear cache
                 sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, , universal_newlines=True)
+                subprocess.run(sync_command, input=passwd, universal_newlines=True)
                 drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, , universal_newlines=True)
+                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
             
         return hwperf
 

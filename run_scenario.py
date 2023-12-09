@@ -17,7 +17,7 @@ def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, 
     memory_limit_command = [
     "sudo", "su", "-c", f"echo {memaloc}M > /sys/fs/cgroup/memory/{cgroup_name}/memory.limit_in_bytes"
     ]
-    subprocess.run(memory_limit_command, input=passwd, , universal_newlines=True)
+    subprocess.run(memory_limit_command, input=passwd, universal_newlines=True)
     if 'gpu' in dev_type:
         template = {'Model':[model_name], 'Memory Allocation (MB)':[memaloc], 'Model Size (MB)':[get_size(model_path, 'mb')], 'J_Clock':[jetson_stat()[0]], 'J_NVP':[jetson_stat()[1]], 'CPU Cores':[psutil.cpu_count()], 'Warmup-CPU Freq (MHz)':[], 'Warmup-GPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (MB)':[], 'Warmup-Mem Swap Usage (MB)':[], 'Warmup-Mem GPU Usage (MB)':[], 'Warmup-Power (mW)':[], 'Warmup-Power CPU (mW)':[], 'Warmup-Power GPU (mW)':[], 'Warmup-GPU Usage (%)':[]}
     else:
@@ -32,7 +32,7 @@ def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, 
     "--threads", threads,
     "--iterations", iterations
     ]
-    cmd = subprocess.run(benchmark_command, input=passwd, capture_output=True, , universal_newlines=True).stdout
+    cmd = subprocess.run(benchmark_command, input=passwd, capture_output=True, universal_newlines=True).stdout
     res = cmd.decode('utf-8')
     data = ast.literal_eval(res)
     for idx, j in enumerate(data):
@@ -124,9 +124,9 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, , universal_newlines=True)
+                subprocess.run(sync_command, input=passwd, universal_newlines=True)
                 drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, , universal_newlines=True)
+                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for k in reversed(np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
@@ -134,9 +134,9 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, , universal_newlines=True)
+                subprocess.run(sync_command, input=passwd, universal_newlines=True)
                 drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, , universal_newlines=True)
+                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for l in np.arange(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
@@ -144,9 +144,9 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
                 sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, , universal_newlines=True)
+                subprocess.run(sync_command, input=passwd, universal_newlines=True)
                 drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, , universal_newlines=True)
+                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
                 
