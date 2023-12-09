@@ -54,7 +54,7 @@ sudo su -c 'echo <stop_scenario>M > /sys/fs/cgroup/memory/<cgroup_name>/memory.m
 ```
 
 ## How it works ?
-Call `run_scenario.py` with these parameters
+Call `run_scenario.py` with these parameters by root
 
 Tips : run the program with `nohup` and background job (`&`). Log save in `run_scenario_<device_type>.log` automatically generate.
 
