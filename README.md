@@ -76,6 +76,11 @@ optional arguments:
 
 Save password in `._config.ini` for the example
 
+```._config.ini
+[Credentials]
+password = your_secure_password
+```
+
 ## Test the benchmark ?
 Call `dlpref_meter/benchmark.py` in `main` folder by root
 
