@@ -48,8 +48,14 @@ def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, 
                     if 'Warmup-Power (mW)' not in template:
                         template['Warmup-Power (mW)'] = []
                     if 'tegra' in uname().release:
+                        if 'J_Clock' not in template:
+                            template['J_Clock'] = []
+                        if 'J_NVP' not in template:
+                            template['J_NVP'] = []
                         if 'Warmup-Power CPU (mW)' not in template:
                             template['Warmup-Power CPU (mW)'] = []
+                        template['J_Clock'].append(jetson_stat()[0])
+                        template['J_NVP'].append(jetson_stat()[1])
                         template['Warmup-Power CPU (mW)'].append(float(j[4]))
                     template['Warmup-Power (mW)'].append(float(j[3]))
             else:
