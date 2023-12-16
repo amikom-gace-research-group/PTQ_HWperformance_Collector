@@ -88,6 +88,8 @@ chmod 700 DLperformance_Collector
 chmod 600 ._config.ini
 ```
 
+if the process is suddenly stopped, call `fg` to insert your password and `ctrl+z`, and then call `bg` for running the process on the background
+
 ## Test the benchmark ?
 Call `dlpref_meter/benchmark.py` in `main` folder by root
 
