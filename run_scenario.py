@@ -191,7 +191,7 @@ if __name__ == '__main__':
     parser.add_argument('--cgroup_name', help='cgroup name named in cgroup settings', required=True)
     config = configparser.ConfigParser()
     config.read("._config.ini")
-    _passwd = config.get("Credentials", "password")
+    _passwd = config.get("Credentials", "password", raw=True)
     args = parser.parse_args()
     logging.basicConfig(filename=f'errorlog.log', filemode='w')
     main(_passwd, args.model_path, args.dev_type, (int(args.threads) if isinstance(args.threads, int) else None), int(args.iterations), args.cgroup_name)
