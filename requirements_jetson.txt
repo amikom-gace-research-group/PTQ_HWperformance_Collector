@@ -1,0 +1,8 @@
+colored
+jetson-stats
+pandas
+Pillow
+polygraphy
+psutil==5.8
+PyYAML
+silence-tensorflow

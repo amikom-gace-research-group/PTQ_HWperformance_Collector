@@ -318,7 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('--iterations', help='how many model runs (auto add warmup once)', default=1)
     config = configparser.ConfigParser()
     config.read("._config.ini")
-    _passwd = config.get("Credentials", "password")
+    _passwd = config.get("Credentials", "password", raw=True)
     args = parser.parse_args()
     
     if 'cpu' in args.type:

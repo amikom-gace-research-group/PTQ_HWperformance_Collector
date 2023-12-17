@@ -5,4 +5,5 @@ test.txt
 *.out
 *.ini
 *.pyc
+*.ipynb
 models/
