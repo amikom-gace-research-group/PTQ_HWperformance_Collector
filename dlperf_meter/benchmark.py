@@ -122,16 +122,28 @@ class GetLatency:
         freq = 0
         try:
             for line in lines:
-                pattern_pow = r"POM_5V_IN (\d+)/(\d+)"
-                match_pow = re.search(pattern_pow, line)
-                if match_pow:
-                    power_ = match_pow.group(2)
-                    entire_power.append(float(power_))
-                pattern_pow_cpu = r"POM_5V_CPU (\d+)/(\d+)"
-                match_pow_cpu = re.search(pattern_pow_cpu, line)
-                if match_pow_cpu:
-                    power_cpu_ = match_pow_cpu.group(2)
-                    entire_power_cpu.append(float(power_cpu_))
+                if '4.9.337-tegra' == uname().release:
+                    pattern_pow = r"POM_5V_IN (\d+)/(\d+)"
+                    match_pow = re.search(pattern_pow, line)
+                    if match_pow:
+                        power_ = match_pow.group(2)
+                        entire_power.append(float(power_))
+                    pattern_pow_cpu = r"POM_5V_CPU (\d+)/(\d+)"
+                    match_pow_cpu = re.search(pattern_pow_cpu, line)
+                    if match_pow_cpu:
+                        power_cpu_ = match_pow_cpu.group(2)
+                        entire_power_cpu.append(float(power_cpu_))
+                elif '5.10.104-tegra' == uname().release:
+                    pattern_pow = r"VDD_IN (\d+)mW/(\d+)mW"
+                    match_pow = re.search(pattern_pow, line)
+                    if match_pow:
+                        power_ = match_pow.group(2)
+                        entire_power.append(float(power_))
+                    pattern_pow_cpu = r"VDD_SOC (\d+)mW/(\d+)mW"
+                    match_pow_cpu = re.search(pattern_pow_cpu, line)
+                    if match_pow_cpu:
+                        power_cpu_ = match_pow_cpu.group(2)
+                        entire_power_cpu.append(float(power_cpu_))
                 if type == 'gpu':
                     pattern_gpu = r"GR3D_FREQ (\d+)%@(\d+)"
                     match_gpu = re.search(pattern_gpu, line)
@@ -139,15 +151,22 @@ class GetLatency:
                         gpu_ = match_gpu.group(1)
                         freq = match_gpu.group(2)
                         entire_gpu.append(float(gpu_))
-                    pattern_pow_gpu = r"POM_5V_GPU (\d+)/(\d+)"
-                    match_pow_gpu = re.search(pattern_pow_gpu, line)
-                    if match_pow_gpu:
-                        power_gpu_ = match_pow_gpu.group(2)
-                        entire_power_gpu.append(float(power_gpu_))
-            entire_gpu_ = [num for num in entire_gpu if num > 2.0]
-            entire_power_ = [num for num in entire_power if num > 2.0]
-            entire_power_gpu_ = [num for num in entire_power_gpu if num > 2.0]
-            entire_power_cpu_ = [num for num in entire_power_cpu if num > 2.0]
+                    if '4.9.337-tegra' == uname().release:
+                        pattern_pow_gpu = r"POM_5V_GPU (\d+)/(\d+)"
+                        match_pow_gpu = re.search(pattern_pow_gpu, line)
+                        if match_pow_gpu:
+                            power_gpu_ = match_pow_gpu.group(2)
+                            entire_power_gpu.append(float(power_gpu_))
+                    elif '5.10.104-tegra' == uname().release:
+                        pattern_pow_gpu = r"VDD_CPU_GPU_CV (\d+)mW/(\d+)mW"
+                        match_pow_gpu = re.search(pattern_pow_gpu, line)
+                        if match_pow_gpu:
+                            power_gpu_ = match_pow_gpu.group(2)
+                            entire_power_gpu.append(float(power_gpu_))
+            entire_gpu_ = [num for num in entire_gpu if num > 0.0]
+            entire_power_ = [num for num in entire_power if num > 0.0]
+            entire_power_gpu_ = [num for num in entire_power_gpu if num > 0.0]
+            entire_power_cpu_ = [num for num in entire_power_cpu if num > 0.0]
             result_gpu = sum(entire_gpu_) / len(entire_gpu_) if entire_gpu_ else 0
             result_power = sum(entire_power_) / len(entire_power_) if entire_power_ else 0
             result_power_gpu = sum(entire_power_gpu_) / len(entire_power_gpu_) if entire_power_gpu_ else 0
