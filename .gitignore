@@ -1,5 +1,5 @@
 .
-test.txt
+tegrastats_*.txt
 *.csv
 *.log
 *.out
