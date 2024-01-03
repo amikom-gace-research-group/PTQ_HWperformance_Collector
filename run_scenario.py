@@ -10,7 +10,7 @@ import subprocess
 from platform import uname
 from dlperf_meter.benchmark import check_ina219
 
-def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, iterations : int, cgroup_name : str):
+def run(memaloc : int, psswd : str, model_path : str, dev_type : str, threads, iterations : int, cgroup_name : str):
     print(f"Physical Memory Limit : {memaloc}Mb")
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
