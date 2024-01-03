@@ -120,7 +120,7 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
     if '5.10.104-tegra' == uname().release:
         for id in np.arange(0, 9):
             for clk in [True, False]:
-                j_mode(id, clk)
+                j_mode(int(id), clk)
                 time.sleep(10)
                 try:
                     run(passwd, model_path, dev_type, threads, iterations)
@@ -133,7 +133,7 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
     elif '4.9.337-tegra' == uname().release:
         for id in np.arange(0, 2):
             for clk in [True, False]:
-                j_mode(id, clk)
+                j_mode(int(id), clk)
                 time.sleep(10)
                 try:
                     run(passwd, model_path, dev_type, threads, iterations)
