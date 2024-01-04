@@ -120,29 +120,31 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
     if '5.10.104-tegra' == uname().release:
         for id in np.arange(0, 9):
             for clk in [True, False]:
-                j_mode(int(id), clk)
-                time.sleep(10)
-                try:
-                    run(passwd, model_path, dev_type, threads, iterations)
-                    sync_command = ["sudo", "sync"]
-                    subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                    drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                    subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
-                except Exception as e:
-                    logging.exception(f"Exception occurred, error {e}")
+                for _ in np.arange(10):
+                    j_mode(int(id), clk)
+                    time.sleep(10)
+                    try:
+                        run(passwd, model_path, dev_type, threads, iterations)
+                        sync_command = ["sudo", "sync"]
+                        subprocess.run(sync_command, input=passwd, universal_newlines=True)
+                        drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
+                        subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                    except Exception as e:
+                        logging.exception(f"Exception occurred, error {e}")
     elif '4.9.337-tegra' == uname().release:
         for id in np.arange(0, 2):
             for clk in [True, False]:
-                j_mode(int(id), clk)
-                time.sleep(10)
-                try:
-                    run(passwd, model_path, dev_type, threads, iterations)
-                    sync_command = ["sudo", "sync"]
-                    subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                    drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                    subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
-                except Exception as e:
-                    logging.exception(f"Exception occurred, error {e}")
+                for _ in np.arange(10):
+                    j_mode(int(id), clk)
+                    time.sleep(10)
+                    try:
+                        run(passwd, model_path, dev_type, threads, iterations)
+                        sync_command = ["sudo", "sync"]
+                        subprocess.run(sync_command, input=passwd, universal_newlines=True)
+                        drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
+                        subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                    except Exception as e:
+                        logging.exception(f"Exception occurred, error {e}")
 
 def get_size(file_path, unit='bytes'):
     file_size = os.path.getsize(file_path)
