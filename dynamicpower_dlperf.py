@@ -118,6 +118,7 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
 
 def main(passwd : str, model_path : str, dev_type: str, threads, iterations : int):
     if '5.10.104-tegra' == uname().release:
+        from jtop import JtopException
         for id in np.arange(0, 9):
             for clk in [True, False]:
                 for _ in np.arange(10):
@@ -131,7 +132,12 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                         subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
                     except Exception as e:
                         logging.exception(f"Exception occurred, error {e}")
+                    except JtopException:
+                        jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
+                        subprocess.run(jtop_command, input=passwd, universal_newlines=True)
+                        continue
     elif '4.9.337-tegra' == uname().release:
+        from jtop import JtopException
         for id in np.arange(0, 2):
             for clk in [True, False]:
                 for _ in np.arange(10):
@@ -145,7 +151,10 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                         subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
                     except Exception as e:
                         logging.exception(f"Exception occurred, error {e}")
-
+                    except JtopException:
+                        jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
+                        subprocess.run(jtop_command, input=passwd, universal_newlines=True)
+                        continue
 def get_size(file_path, unit='bytes'):
     file_size = os.path.getsize(file_path)
     exponents_map = {'bytes': 0, 'kb': 1, 'mb': 2, 'gb': 3}
