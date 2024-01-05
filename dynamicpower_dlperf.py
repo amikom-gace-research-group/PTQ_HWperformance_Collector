@@ -155,6 +155,7 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                         jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
                         subprocess.run(jtop_command, input=passwd, universal_newlines=True)
                         continue
+
 def get_size(file_path, unit='bytes'):
     file_size = os.path.getsize(file_path)
     exponents_map = {'bytes': 0, 'kb': 1, 'mb': 2, 'gb': 3}
