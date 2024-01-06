@@ -131,10 +131,11 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                         drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
                         subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
                     except Exception as e:
-                        logging.exception(f"Exception occurred, error {e}")
-                    except JtopException:
-                        jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
-                        subprocess.run(jtop_command, input=passwd, universal_newlines=True)
+                        if JtopException or EOFError:
+                            jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
+                            subprocess.run(jtop_command, input=passwd, universal_newlines=True)
+                        else:
+                            logging.exception(f"Exception occurred, error {e}")
                         continue
     elif '4.9.337-tegra' == uname().release:
         from jtop import JtopException
@@ -150,10 +151,11 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                         drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
                         subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
                     except Exception as e:
-                        logging.exception(f"Exception occurred, error {e}")
-                    except JtopException:
-                        jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
-                        subprocess.run(jtop_command, input=passwd, universal_newlines=True)
+                        if JtopException or EOFError:
+                            jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
+                            subprocess.run(jtop_command, input=passwd, universal_newlines=True)
+                        else:
+                            logging.exception(f"Exception occurred, error {e}")
                         continue
 
 def get_size(file_path, unit='bytes'):
