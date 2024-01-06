@@ -107,23 +107,22 @@ def evaluate(model_path: str, batch_size, passwd):
     for image_batch, label_batch in test_set_batched:
         for index in range(len(label_batch)):
             true_labels.append(label_batch[index].numpy())
-        
+
         thread = CPU()
         thread.start()
         time.sleep(2)
         start = time.time()
 
-        for image in image_batch:
-            if input_details['dtype'] == np.uint8:
-                input_scale, input_zero_point = input_details["quantization"]
-                image = image / input_scale + input_zero_point
+        batch_images = np.stack(image_batch)  # Stack images to create a batch
+        batch_images = batch_images.reshape((5, 224, 224, 3)).astype(input_details["dtype"])
 
-            image = np.expand_dims(image, axis=0).astype(input_details["dtype"])
-            interpreter.set_tensor(input_details["index"], image)
-            interpreter.invoke()
-            output = interpreter.get_tensor(output_details["index"])[0]
-            prediction = output.argmax()
-            predicted_labels.append(prediction)
+        interpreter.set_tensor(input_details["index"], batch_images)
+        interpreter.invoke()
+
+        # Assuming the output tensor is 1D, adjust accordingly if it's different
+        output = interpreter.get_tensor(output_details["index"])
+        predictions = np.argmax(output, axis=1)
+        predicted_labels.extend(predictions)
 
         elapsed = (time.time() - start) * 1000
         perf['Latency (ms)'].append(elapsed)
