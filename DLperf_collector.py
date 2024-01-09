@@ -51,8 +51,8 @@ def get_size(file_path, unit='MB'):
         return round(size, 2)
 
 def clear_cache(passwd):
-    subprocess.run(["sudo", "sync"], input=passwd, universal_newlines=True)
-    subprocess.run(["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"], input=passwd, universal_newlines=True)
+    subprocess.run(["echo", passwd, "|", "sudo", "-S", "sync"], shell=True, universal_newlines=True)
+    subprocess.run(["echo", passwd, "|", "sudo", "-S", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"], shell=True, universal_newlines=True)
 
 def evaluate(model_path: str, batch_size, passwd):
     test_set = tfds.load(
