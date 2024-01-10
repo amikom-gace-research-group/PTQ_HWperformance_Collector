@@ -10,7 +10,7 @@ import subprocess
 from platform import uname
 from dlperf_meter.benchmark import check_ina219
 
-def run(memaloc : int, psswd : str, model_path : str, dev_type : str, threads, iterations : int, cgroup_name : str):
+def run(memaloc : int, passwd : str, model_path : str, dev_type : str, threads, iterations : int, cgroup_name : str):
     print(f"Physical Memory Limit : {memaloc}Mb")
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
@@ -24,8 +24,8 @@ def run(memaloc : int, psswd : str, model_path : str, dev_type : str, threads, i
         template = {'Model':[model_name], 'Memory Allocation (MB)':[memaloc], 'Model Size (MB)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'CPU Cores':[psutil.cpu_count()], 'Warmup-CPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (MB)':[], 'Warmup-Mem Swap Usage (MB)':[]}
     time.sleep(10)
     print('iterations :', iterations)
-    benchmark_command = [
-    "sudo", "cgexec", "-g", f"memory:{cgroup_name}",
+    benchmark_command = ["echo", passwd, "|",
+    "sudo", "-S", "cgexec", "-g", f"memory:{cgroup_name}",
     "python3", "dlperf_meter/benchmark.py",
     "--model", model_path,
     "--type", dev_type,
@@ -34,7 +34,7 @@ def run(memaloc : int, psswd : str, model_path : str, dev_type : str, threads, i
     # Include threads in the command if it's not None
     if threads is not None:
         benchmark_command.extend(["--threads", threads])
-    cmd = subprocess.run(benchmark_command, input=passwd, stdout=subprocess.PIPE, universal_newlines=True).stdout
+    cmd = subprocess.run(benchmark_command, shell=True, stdout=subprocess.PIPE, universal_newlines=True).stdout
     data = ast.literal_eval(cmd)
     for idx, j in enumerate(data):
         if 'cpu' in dev_type:
@@ -130,33 +130,28 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
         for _ in np.arange(10):
             try:
                 run(g, passwd, model_path, dev_type, threads, iterations, cgroup_name)
-                sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                clear_cache(passwd)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for k in reversed(np.arange(scenarios[dev_type]['start'], scenarios[dev_type]['stop'], scenarios[dev_type]['stage'])):
         for _ in np.arange(10):
             try:
                 run(k, passwd, model_path, dev_type, threads, iterations, cgroup_name)
-                sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                clear_cache(passwd)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
     for l in np.arange(scenarios[dev_type]['start']+scenarios[dev_type]['stage'], scenarios[dev_type]['stop']+scenarios[dev_type]['stage'], scenarios[dev_type]['stage']):
         for _ in np.arange(10):
             try:
                 run(l, passwd, model_path, dev_type, threads, iterations, cgroup_name)
-                sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                clear_cache(passwd)
             except Exception as e:
                 logging.exception(f"Exception occurred, error {e}")
-                
+
+def clear_cache(passwd):
+    subprocess.run(["echo", passwd, "|", "sudo", "-S", "sync"], shell=True, universal_newlines=True)
+    subprocess.run(["echo", passwd, "|", "sudo", "-S", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"], shell=True, universal_newlines=True)
+
 def get_size(file_path, unit='bytes'):
     file_size = os.path.getsize(file_path)
     exponents_map = {'bytes': 0, 'kb': 1, 'mb': 2, 'gb': 3}

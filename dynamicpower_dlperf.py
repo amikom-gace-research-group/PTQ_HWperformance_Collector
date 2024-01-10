@@ -18,8 +18,8 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
         template = {'Model':[model_name], 'Model Size (MB)':[get_size(model_path, 'mb')], 'Num Threads':[threads], 'CPU Cores':[psutil.cpu_count()], 'Warmup-CPU Freq (MHz)':[], 'Warmup-Latency (ms)':[], 'Warmup-CPU Usage (%)':[], 'Warmup-Mem RSS Usage (MB)':[], 'Warmup-Mem Swap Usage (MB)':[]}
     print('iterations :', iterations)
     print('Jetson Mode :', jetson_stat())
-    benchmark_command = [
-    "sudo", "python3", "dlperf_meter/benchmark.py",
+    benchmark_command = ["echo", passwd, "|",
+    "sudo", "-S", "python3", "dlperf_meter/benchmark.py",
     "--model", model_path,
     "--type", dev_type,
     "--iterations", str(iterations)
@@ -27,7 +27,7 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
     # Include threads in the command if it's not None
     if threads is not None:
         benchmark_command.extend(["--threads", threads])
-    cmd = subprocess.run(benchmark_command, input=passwd, stdout=subprocess.PIPE, universal_newlines=True).stdout
+    cmd = subprocess.run(benchmark_command, shell=True, stdout=subprocess.PIPE, universal_newlines=True).stdout
     data = ast.literal_eval(cmd)
     for idx, j in enumerate(data):
         if 'cpu' in dev_type:
@@ -126,16 +126,14 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                     time.sleep(10)
                     try:
                         run(passwd, model_path, dev_type, threads, iterations)
-                        sync_command = ["sudo", "sync"]
-                        subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                        drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                        subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                        clear_cache(passwd)
                     except Exception as e:
                         if JtopException or EOFError:
                             jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
                             subprocess.run(jtop_command, input=passwd, universal_newlines=True)
                         else:
                             logging.exception(f"Exception occurred, error {e}")
+                        clear_cache(passwd)
                         continue
     elif '4.9.337-tegra' == uname().release:
         from jtop import JtopException
@@ -146,17 +144,19 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                     time.sleep(10)
                     try:
                         run(passwd, model_path, dev_type, threads, iterations)
-                        sync_command = ["sudo", "sync"]
-                        subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                        drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                        subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                        clear_cache(passwd)
                     except Exception as e:
                         if JtopException or EOFError:
                             jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
                             subprocess.run(jtop_command, input=passwd, universal_newlines=True)
                         else:
                             logging.exception(f"Exception occurred, error {e}")
+                        clear_cache(passwd)
                         continue
+
+def clear_cache(passwd):
+    subprocess.run(["echo", passwd, "|", "sudo", "-S", "sync"], shell=True, universal_newlines=True)
+    subprocess.run(["echo", passwd, "|", "sudo", "-S", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"], shell=True, universal_newlines=True)
 
 def get_size(file_path, unit='bytes'):
     file_size = os.path.getsize(file_path)
