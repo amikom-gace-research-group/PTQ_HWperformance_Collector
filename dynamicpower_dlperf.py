@@ -118,7 +118,6 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
 
 def main(passwd : str, model_path : str, dev_type: str, threads, iterations : int):
     if '5.10.104-tegra' == uname().release:
-        from jtop import JtopException
         for id in np.arange(0, 9):
             for clk in [True, False]:
                 for _ in np.arange(10):
@@ -128,15 +127,10 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                         run(passwd, model_path, dev_type, threads, iterations)
                         clear_cache(passwd)
                     except Exception as e:
-                        if JtopException or EOFError:
-                            jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
-                            subprocess.run(jtop_command, input=passwd, universal_newlines=True)
-                        else:
-                            logging.exception(f"Exception occurred, error {e}")
+                        logging.exception(f"Exception occurred, error {e}")
                         clear_cache(passwd)
                         continue
     elif '4.9.337-tegra' == uname().release:
-        from jtop import JtopException
         for id in np.arange(0, 2):
             for clk in [True, False]:
                 for _ in np.arange(10):
@@ -146,11 +140,7 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                         run(passwd, model_path, dev_type, threads, iterations)
                         clear_cache(passwd)
                     except Exception as e:
-                        if JtopException or EOFError:
-                            jtop_command = ["sudo", "systemctl", "restart", "jtop.service"]
-                            subprocess.run(jtop_command, input=passwd, universal_newlines=True)
-                        else:
-                            logging.exception(f"Exception occurred, error {e}")
+                        logging.exception(f"Exception occurred, error {e}")
                         clear_cache(passwd)
                         continue
 
