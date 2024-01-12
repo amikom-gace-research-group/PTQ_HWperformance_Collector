@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 import warnings
 import threading
+import multiprocessing
 from platform import uname
 warnings.filterwarnings('ignore')
 
@@ -103,16 +104,20 @@ class GetLatency:
         self._img = img
         self.gpu = True
 
+    def _clear_cache(self, passwd):
+        subprocess.run(["sudo", "-S", "sync"], input=passwd, universal_newlines=True)
+        subprocess.run(["sudo", "-S", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"], input=passwd, universal_newlines=True)
+
     def _process_memory(self):
         process = psutil.Process()
         mem_info = process.memory_full_info()
         return mem_info 
 
     def _jstat_start(self, passwd):
-        subprocess.run(["sudo", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}.txt"], input=passwd, universal_newlines=True)
+        subprocess.run(["sudo", "-S", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}.txt"], input=passwd, universal_newlines=True)
 
     def _jstat_stop(self, type, passwd):
-        subprocess.run(["sudo", "tegrastats", "--stop"], input=passwd, universal_newlines=True)
+        subprocess.run(["sudo", "-S", "tegrastats", "--stop"], input=passwd, universal_newlines=True)
         out = open(f"tegrastats_{os.getpid()}.txt", 'r')
         lines = out.read().split('\n')
         entire_gpu = []
@@ -186,11 +191,11 @@ class GetLatency:
     # @profile
     def tflite_benchmark(self, iterations, dev_type, threads, passwd):
         import tensorflow as tf
+
         interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=threads)
         interpreter.allocate_tensors()
 
         input_details = interpreter.get_input_details()[0]
-        output_index = interpreter.get_output_details()[0]["index"]
 
         height = input_details['shape'][1]
         width = input_details['shape'][2]
@@ -207,51 +212,92 @@ class GetLatency:
 
         # add N dim
         input_data = np.expand_dims(img, axis=0).astype(input_details["dtype"])
+        
+        def inference_worker(input_queue, output_queue):
+            hwperfs = {'Task Time':[], 'The Num. of Task':[], 'Output':[]}
+            con_start = timer()
+            while True:
+                input_data = input_queue.get()
+                if input_data is None:
+                    break
 
-        interpreter.set_tensor(input_details['index'], input_data)
+                interpreter.set_tensor(input_details['index'], input_data)
 
-        hwperf = []
+                hwperf = []
 
-        for i in np.arange(iterations+1):
-            # Run inference.
-            cpu = CPU()
-            cpu.start()
-            if 'tegra' in uname().release:
-                self._jstat_start(passwd)
-            elif check_ina219():
-                ina = INAEXT()
-                ina.start()
-            time.sleep(2)
-            start = timer()
-            interpreter.invoke()
-            mem_res = self._process_memory()
-            end = timer()
-            elapsed = ((end - start) * 1000)
-            if elapsed < 1000:
-                time.sleep((2000-elapsed)/1000)
-            cpu_freq = psutil.cpu_freq().current
-            cpu.stop()
-            cpu.join()
-            if 'tegra' in uname().release:
-                power, _, power_cpu = self._jstat_stop(dev_type, passwd)[1:4]
-            elif check_ina219():
-                ina.stop()
-                ina.join()
-                power = float(ina.result[0])
-            else:
-                power = 0
-                power_cpu = 0
-            cpu_percent = float(cpu.result[0])
-            hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), float(cpu_freq)])
-            if 'tegra' in uname().release:
-                subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
-            # clear cache
-            sync_command = ["sudo", "sync"]
-            subprocess.run(sync_command, input=passwd, universal_newlines=True)
-            drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-            subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                # Run inference.
+                cpu = CPU()
+                cpu.start()
+                if 'tegra' in uname().release:
+                    self._jstat_start(passwd)
+                elif check_ina219():
+                    ina = INAEXT()
+                    ina.start()
+                time.sleep(2)
+                start = timer()
+                interpreter.invoke()
+                mem_res = self._process_memory()
+                end = timer()
+                elapsed = ((end - start) * 1000)
+                if elapsed < 1000:
+                    time.sleep((2000-elapsed)/1000)
+                cpu_freq = psutil.cpu_freq().current
+                cpu.stop()
+                cpu.join()
+                if 'tegra' in uname().release:
+                    power, _, power_cpu = self._jstat_stop(dev_type, passwd)[1:4]
+                elif check_ina219():
+                    ina.stop()
+                    ina.join()
+                    power = float(ina.result[0])
+                else:
+                    power = 0
+                    power_cpu = 0
+                cpu_percent = float(cpu.result[0])
+                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), float(cpu_freq)])
+                if 'tegra' in uname().release:
+                    subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
+                # clear cache
+                self._clear_cache(passwd)
+            
+            con_time = ((timer()- con_start) * 1000)
+            hwperfs["Task Time"].append(con_time)
+            hwperfs["Output"].append(hwperf)
+            hwperfs["The Num. of Task"].append(len(hwperf))
+            output_queue.put(hwperfs)
 
-        return hwperf
+        # Initialize queues for communication between main process and worker processes
+        input_queue = multiprocessing.Queue()
+        output_queue = multiprocessing.Queue()
+
+        # Create and start worker processes
+        num_processes = psutil.cpu_count()
+        processes = []
+
+        for _ in range(num_processes):
+            p = multiprocessing.Process(target=inference_worker, args=(input_queue, output_queue))
+            p.start()
+            processes.append(p)
+        
+        total_hwperf = []
+
+        # Push input data to the input queue
+        for _ in range(iterations + 1):
+            input_queue.put(input_data)
+
+        for _ in range(num_processes):
+            input_queue.put(None)  # Signal workers to exit
+
+        # Retrieve results from the output queue
+        for _ in range(iterations + 1):
+            res = output_queue.get()
+            total_hwperf.append(res)
+
+        # Wait for all worker processes to finish
+        for p in processes:
+            p.join()
+
+        return total_hwperf
     
     def tensorrt_benchmark(self, iterations, dev_type, passwd):
         from polygraphy.backend.common import BytesFromPath
@@ -265,42 +311,81 @@ class GetLatency:
             frame = np.array(img, dtype=input_metadata["input_1"].dtype) / 255.0
             input_data = np.expand_dims(frame, axis=0).astype(input_metadata["input_1"].dtype)
 
-            hwperf = []
+            def inference_worker(input_queue, output_queue):
+                hwperfs = {'Task Time':[], 'Num. of Tasks':[], 'Output':[]}
+                con_start = timer()
+                while True:
+                    input_data = input_queue.get()
+                    if input_data is None:
+                        break
+                    hwperf = []
+                    runner.activate()
+                    self._jstat_start(passwd)
+                    cpu = CPU()
+                    gmem = GPUMem()
+                    cpu.start()
+                    gmem.start()
+                    time.sleep(2)
+                    runner.infer(feed_dict={'input_1': input_data})
 
-            for i in np.arange(iterations+1):
-                runner.activate()
-                self._jstat_start(passwd)
-                cpu = CPU()
-                gmem = GPUMem()
-                cpu.start()
-                gmem.start()
-                time.sleep(2)
-                runner.infer(feed_dict={'input_1': input_data})
+                    # retrieve the results
+                    mem_res = self._process_memory()
+                    gpu, power, gpu_freq, power_cpu, power_gpu = self._jstat_stop(dev_type, passwd)[0:5]
+                    elapsed = runner.inference_time * 1000
+                    if elapsed < 1000:
+                        time.sleep((2000-elapsed)/1000)
+                    cpu_freq = psutil.cpu_freq().current
+                    cpu.stop()
+                    gmem.stop()
+                    cpu.join()
+                    gmem.join()
+                    cpu_percent = float(cpu.result[0])
+                    gpu_mem = float(gmem.result[0])
 
-                # retrieve the results
-                mem_res = self._process_memory()
-                gpu, power, gpu_freq, power_cpu, power_gpu = self._jstat_stop(dev_type, passwd)[0:5]
-                elapsed = runner.inference_time * 1000
-                if elapsed < 1000:
-                    time.sleep((2000-elapsed)/1000)
-                cpu_freq = psutil.cpu_freq().current
-                cpu.stop()
-                gmem.stop()
-                cpu.join()
-                gmem.join()
-                cpu_percent = float(cpu.result[0])
-                gpu_mem = float(gmem.result[0])
+                    hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), round(float(cpu_freq), 2), round(float(gpu_freq), 2)])
+                    runner.deactivate()
+                    subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
+                    # clear cache
+                    self._clear_cache(passwd)
 
-                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), round(float(cpu_freq), 2), round(float(gpu_freq), 2)])
-                runner.deactivate()
-                subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
-                # clear cache
-                sync_command = ["sudo", "sync"]
-                subprocess.run(sync_command, input=passwd, universal_newlines=True)
-                drop_caches_command = ["sudo", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"]
-                subprocess.run(drop_caches_command, input=passwd, universal_newlines=True)
+                con_time = ((timer()- con_start) * 1000)
+                hwperfs["Task Time"].append(con_time)
+                hwperfs["Output"].append(hwperf)
+                hwperfs["Num. of Tasks"].append(len(hwperf))
+                output_queue.put(hwperfs)
             
-        return hwperf
+            # Initialize queues for communication between main process and worker processes
+            input_queue = multiprocessing.Queue()
+            output_queue = multiprocessing.Queue()
+
+            # Create and start worker processes
+            num_processes = psutil.cpu_count()
+            processes = []
+
+            for _ in range(num_processes):
+                p = multiprocessing.Process(target=inference_worker, args=(input_queue, output_queue))
+                p.start()
+                processes.append(p)
+            
+            total_hwperf = []
+
+            # Push input data to the input queue
+            for _ in range(iterations + 1):
+                input_queue.put(input_data)
+
+            for _ in range(num_processes):
+                input_queue.put(None)  # Signal workers to exit
+
+            # Retrieve results from the output queue
+            for _ in range(iterations + 1):
+                res = output_queue.get()
+                total_hwperf.append(res)
+
+            # Wait for all worker processes to finish
+            for p in processes:
+                p.join()
+
+            return total_hwperf
 
 def check_ina219():
     try:
