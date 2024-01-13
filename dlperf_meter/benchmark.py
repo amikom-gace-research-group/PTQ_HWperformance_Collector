@@ -105,12 +105,12 @@ class HWFUNC:
         mem_info = process.memory_full_info()
         return mem_info 
 
-    def jstat_start(self, passwd):
-        subprocess.run(["sudo", "-S", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}.txt"], input=passwd, universal_newlines=True)
+    def jstat_start(self, passwd, id_worker):
+        subprocess.run(["sudo", "-S", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}_{id_worker}.txt"], input=passwd, universal_newlines=True)
 
-    def jstat_stop(self, type, passwd):
+    def jstat_stop(self, type, passwd, id_worker):
         subprocess.run(["sudo", "-S", "tegrastats", "--stop"], input=passwd, universal_newlines=True)
-        out = open(f"tegrastats_{os.getpid()}.txt", 'r')
+        out = open(f"tegrastats_{os.getpid()}_{id_worker}.txt", 'r')
         lines = out.read().split('\n')
         entire_gpu = []
         entire_power = []
@@ -191,8 +191,9 @@ class HWFUNC:
             return False
 
 class LatencyCPU(threading.Thread):
-    def __init__(self, graph_path, img, iterations, dev_type, threads, passwd):
+    def __init__(self, work_id, graph_path, img, iterations, dev_type, threads, passwd):
         threading.Thread.__init__(self)
+        self._workid = work_id
         self._graph_path = graph_path
         self._img = img
         self.result = None
@@ -232,7 +233,7 @@ class LatencyCPU(threading.Thread):
                 cpu = CPU()
                 cpu.start()
                 if 'tegra' in uname().release:
-                    self.hwfunc.jstat_start(self._passwd)
+                    self.hwfunc.jstat_start(self._passwd, self._workid)
                 elif self.hwfunc.check_ina219():
                     ina = INAEXT()
                     ina.start()
@@ -248,7 +249,7 @@ class LatencyCPU(threading.Thread):
                 cpu.stop()
                 cpu.join()
                 if 'tegra' in uname().release:
-                    power, _, power_cpu = self.hwfunc.jstat_stop(self._dev_type, self._passwd)[1:4]
+                    power, _, power_cpu = self.hwfunc.jstat_stop(self._dev_type, self._passwd, self._workid)[1:4]
                 elif self.hwfunc.check_ina219():
                     ina.stop()
                     ina.join()
@@ -260,7 +261,10 @@ class LatencyCPU(threading.Thread):
                 with threading.Lock():
                     self._list.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), float(cpu_freq)])
                 if 'tegra' in uname().release:
-                    subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
+                    try:
+                        subprocess.check_output(f'rm tegrastats_{os.getpid()}_{self._workid}.txt', shell=True)
+                    except:
+                        pass
                 # clear cache
                 self.hwfunc.clear_cache(self._passwd)
             self.result = self._list
@@ -268,8 +272,9 @@ class LatencyCPU(threading.Thread):
             self.result = self._list
 
 class LatencyGPU(threading.Thread):
-    def __init__(self, graph_path, img, iterations, dev_type, passwd):
+    def __init__(self, work_id, graph_path, img, iterations, dev_type, passwd):
         threading.Thread.__init__(self)
+        self._workid = work_id
         self._graph_path = graph_path
         self._img = img
         self.result = None
@@ -290,7 +295,7 @@ class LatencyGPU(threading.Thread):
 
                 for _ in np.arange(self._iterations+1):
                     runner.activate()
-                    self.hwfunc.jstat_start(self._passwd)
+                    self.hwfunc.jstat_start(self._passwd, self._workid)
                     cpu = CPU()
                     gmem = GPUMem()
                     cpu.start()
@@ -300,7 +305,7 @@ class LatencyGPU(threading.Thread):
 
                     # retrieve the results
                     mem_res = self.hwfunc.process_memory()
-                    gpu, power, gpu_freq, power_cpu, power_gpu = self.hwfunc.jstat_stop(self._dev_type, self._passwd)[0:5]
+                    gpu, power, gpu_freq, power_cpu, power_gpu = self.hwfunc.jstat_stop(self._dev_type, self._passwd, self._workid)[0:5]
                     elapsed = runner.inference_time * 1000
                     if elapsed < 1000:
                         time.sleep((2000-elapsed)/1000)
@@ -314,7 +319,10 @@ class LatencyGPU(threading.Thread):
                     with threading.Lock:
                         self._list.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), round(float(cpu_freq), 2), round(float(gpu_freq), 2)])
                     runner.deactivate()
-                    subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
+                    try:
+                        subprocess.check_output(f'rm tegrastats_{os.getpid()}_{self._workid}.txt', shell=True)
+                    except:
+                        pass
                     # clear cache
                     self.hwfunc.clear_cache(self._passwd)
             self.result = self._list
@@ -328,8 +336,8 @@ def main_tflite(model : str, iterations : int, dev_type : str, threads, passwd :
     res = []
     hwperfs = {'Task Time':[], 'Num. of Tasks':[], 'Output':[]}
     con_start = timer()
-    for _ in np.arange(concurrent):
-        setup = LatencyCPU(model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, threads, passwd)
+    for i in np.arange(concurrent):
+        setup = LatencyCPU(i, model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, threads, passwd)
         setup.start()
         apps.append(setup)
     
@@ -349,8 +357,8 @@ def main_tensorrt(model : str, iterations : int, dev_type : str, passwd : str, c
     res = []
     hwperfs = {'Task Time':[], 'Num. of Tasks':[], 'Output':[]}
     con_start = timer()
-    for _ in np.arange(concurrent):
-        setup = LatencyGPU(model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, passwd)
+    for i in np.arange(concurrent):
+        setup = LatencyGPU(i, model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, passwd)
         setup.start()
         apps.append(setup)
     
