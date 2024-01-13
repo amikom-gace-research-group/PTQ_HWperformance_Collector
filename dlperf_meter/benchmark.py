@@ -95,7 +95,7 @@ class GPUMem(threading.Thread):
     def stop(self):
         self.event.set()
 
-class HWMFUNC:
+class HWFUNC:
     def clear_cache(self, passwd):
         subprocess.run(["sudo", "-S", "sync"], input=passwd, universal_newlines=True)
         subprocess.run(["sudo", "-S", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"], input=passwd, universal_newlines=True)
@@ -197,7 +197,7 @@ class LatencyCPU(threading.Thread):
         self._img = img
         self.result = None
         self._list = []
-        self.hwfunc = HWMFUNC()
+        self.hwfunc = HWFUNC()
         self._iterations = iterations
         self._dev_type = dev_type
         self._threads = threads
@@ -274,7 +274,7 @@ class LatencyGPU(threading.Thread):
         self._img = img
         self.result = None
         self._list = []
-        self.hwfunc = HWMFUNC()
+        self.hwfunc = HWFUNC()
         self._iterations = iterations
         self._dev_type = dev_type
         self._passwd = passwd

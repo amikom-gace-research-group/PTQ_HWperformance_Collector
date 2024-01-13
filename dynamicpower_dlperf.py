@@ -7,7 +7,9 @@ import psutil
 import logging
 import subprocess
 from platform import uname
-from dlperf_meter.benchmark import check_ina219
+from dlperf_meter.benchmark import HWFUNC
+
+check_ina219 = HWFUNC().check_ina219
 
 def run(passwd : str, model_path : str, dev_type : str, threads, iterations : int):
     model_name = os.path.basename(model_path)
