@@ -8,9 +8,13 @@ import numpy as np
 from PIL import Image
 import warnings
 import threading
-import multiprocessing
 from platform import uname
+import tensorflow as tf
+from polygraphy.backend.common import BytesFromPath
+from polygraphy.backend.trt import EngineFromBytes, TrtRunner
+from polygraphy.logger import G_LOGGER
 warnings.filterwarnings('ignore')
+G_LOGGER.module_severity = 50
 
 ### FUNCTION ###
 class CPU(threading.Thread):
@@ -91,32 +95,20 @@ class GPUMem(threading.Thread):
     def stop(self):
         self.event.set()
 
-class GetLatency:
-    def __init__(self, graph_path='', img=''):
-        """
-        @params:
-        graph_path: graph file (.tflite)
-        num_threads: The number of threads to use for running TFLite interpreter. default is 4
-        gpu: bool True to enable GPU mode benchmarks (tflite_benchmark function only)
-        img: image for testing by interpreter_benchmark function (not return accuracy, just to fill input tensor).
-        """
-        self._graph_path = graph_path
-        self._img = img
-        self.gpu = True
-
-    def _clear_cache(self, passwd):
+class HWMFUNC:
+    def clear_cache(self, passwd):
         subprocess.run(["sudo", "-S", "sync"], input=passwd, universal_newlines=True)
         subprocess.run(["sudo", "-S", "su", "-c", "echo 3 > /proc/sys/vm/drop_caches"], input=passwd, universal_newlines=True)
 
-    def _process_memory(self):
+    def process_memory(self):
         process = psutil.Process()
         mem_info = process.memory_full_info()
         return mem_info 
 
-    def _jstat_start(self, passwd):
+    def jstat_start(self, passwd):
         subprocess.run(["sudo", "-S", "tegrastats", "--interval", "10", "--start", "--logfile", f"tegrastats_{os.getpid()}.txt"], input=passwd, universal_newlines=True)
 
-    def _jstat_stop(self, type, passwd):
+    def jstat_stop(self, type, passwd):
         subprocess.run(["sudo", "-S", "tegrastats", "--stop"], input=passwd, universal_newlines=True)
         out = open(f"tegrastats_{os.getpid()}.txt", 'r')
         lines = out.read().split('\n')
@@ -188,55 +180,66 @@ class GetLatency:
 
         return result_gpu, result_power, freq, result_power_cpu, result_power_gpu, entire_gpu_,  entire_power_, entire_power_cpu_, entire_power_gpu_
     
-    # @profile
-    def tflite_benchmark(self, iterations, dev_type, threads, passwd):
-        import tensorflow as tf
+    def check_ina219(self):
+        try:
+            import ina219
+            ina = ina219.INA219(0.1)
+            voltage = ina.voltage()
+            # If the script reaches here without errors, the INA219 is connected
+            return True
+        except:
+            return False
 
-        interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=threads)
-        interpreter.allocate_tensors()
+class LatencyCPU(threading.Thread):
+    def __init__(self, graph_path, img, iterations, dev_type, threads, passwd):
+        threading.Thread.__init__(self)
+        self._graph_path = graph_path
+        self._img = img
+        self.result = None
+        self._list = []
+        self.hwfunc = HWMFUNC()
+        self._iterations = iterations
+        self._dev_type = dev_type
+        self._threads = threads
+        self._passwd = passwd
+    
+    def run(self):
+        try:
+            interpreter = tf.lite.Interpreter(model_path=self._graph_path, num_threads=self._threads)
+            interpreter.allocate_tensors()
 
-        input_details = interpreter.get_input_details()[0]
+            input_details = interpreter.get_input_details()[0]
 
-        height = input_details['shape'][1]
-        width = input_details['shape'][2]
+            height = input_details['shape'][1]
+            width = input_details['shape'][2]
 
-        img = Image.open(self._img).resize((width, height))
+            img = Image.open(self._img).resize((width, height))
 
-        # Convert image to NumPy array
-        img_array = np.array(img, dtype=input_details["dtype"]) / 255.0
+            # Convert image to NumPy array
+            img_array = np.array(img, dtype=input_details["dtype"]) / 255.0
 
-        # Check if the input type is quantized, then rescale input data to uint8
-        if input_details['dtype'] == np.uint8:
-            input_scale, input_zero_point = input_details["quantization"]
-            img_array = img_array / input_scale + input_zero_point
+            # Check if the input type is quantized, then rescale input data to uint8
+            if input_details['dtype'] == np.uint8:
+                input_scale, input_zero_point = input_details["quantization"]
+                img_array = img_array / input_scale + input_zero_point
 
-        # add N dim
-        input_data = np.expand_dims(img, axis=0).astype(input_details["dtype"])
-        
-        def inference_worker(input_queue, output_queue):
-            hwperfs = {'Task Time':[], 'The Num. of Task':[], 'Output':[]}
-            con_start = timer()
-            while True:
-                input_data = input_queue.get()
-                if input_data is None:
-                    break
+            # add N dim
+            input_data = np.expand_dims(img, axis=0).astype(input_details["dtype"])
+            interpreter.set_tensor(input_details['index'], input_data)
 
-                interpreter.set_tensor(input_details['index'], input_data)
-
-                hwperf = []
-
+            for _ in np.arange(self._iterations+1):
                 # Run inference.
                 cpu = CPU()
                 cpu.start()
                 if 'tegra' in uname().release:
-                    self._jstat_start(passwd)
-                elif check_ina219():
+                    self.hwfunc.jstat_start(self._passwd)
+                elif self.hwfunc.check_ina219():
                     ina = INAEXT()
                     ina.start()
                 time.sleep(2)
                 start = timer()
                 interpreter.invoke()
-                mem_res = self._process_memory()
+                mem_res = self.hwfunc.process_memory()
                 end = timer()
                 elapsed = ((end - start) * 1000)
                 if elapsed < 1000:
@@ -245,8 +248,8 @@ class GetLatency:
                 cpu.stop()
                 cpu.join()
                 if 'tegra' in uname().release:
-                    power, _, power_cpu = self._jstat_stop(dev_type, passwd)[1:4]
-                elif check_ina219():
+                    power, _, power_cpu = self.hwfunc.jstat_stop(self._dev_type, self._passwd)[1:4]
+                elif self.hwfunc.check_ina219():
                     ina.stop()
                     ina.join()
                     power = float(ina.result[0])
@@ -254,73 +257,40 @@ class GetLatency:
                     power = 0
                     power_cpu = 0
                 cpu_percent = float(cpu.result[0])
-                hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), float(cpu_freq)])
+                with threading.Lock():
+                    self._list.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(power, 2), round(power_cpu, 2), float(cpu_freq)])
                 if 'tegra' in uname().release:
                     subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
                 # clear cache
-                self._clear_cache(passwd)
-            
-            con_time = ((timer()- con_start) * 1000)
-            hwperfs["Task Time"].append(con_time)
-            hwperfs["Output"].append(hwperf)
-            hwperfs["The Num. of Task"].append(len(hwperf))
-            output_queue.put(hwperfs)
+                self.hwfunc.clear_cache(self._passwd)
+            self.result = self._list
+        except:
+            self.result = self._list
 
-        # Initialize queues for communication between main process and worker processes
-        input_queue = multiprocessing.Queue()
-        output_queue = multiprocessing.Queue()
+class LatencyGPU(threading.Thread):
+    def __init__(self, graph_path, img, iterations, dev_type, passwd):
+        threading.Thread.__init__(self)
+        self._graph_path = graph_path
+        self._img = img
+        self.result = None
+        self._list = []
+        self.hwfunc = HWMFUNC()
+        self._iterations = iterations
+        self._dev_type = dev_type
+        self._passwd = passwd
 
-        # Create and start worker processes
-        num_processes = psutil.cpu_count()
-        processes = []
+    def run(self):
+        try:
+            load_engine = EngineFromBytes(BytesFromPath(self._graph_path))
+            with TrtRunner(load_engine) as runner:
+                input_metadata = runner.get_input_metadata()
+                img = Image.open(self._img).resize((224, 224))
+                frame = np.array(img, dtype=input_metadata["input_1"].dtype) / 255.0
+                input_data = np.expand_dims(frame, axis=0).astype(input_metadata["input_1"].dtype)
 
-        for _ in range(num_processes):
-            p = multiprocessing.Process(target=inference_worker, args=(input_queue, output_queue))
-            p.start()
-            processes.append(p)
-        
-        total_hwperf = []
-
-        # Push input data to the input queue
-        for _ in range(iterations + 1):
-            input_queue.put(input_data)
-
-        for _ in range(num_processes):
-            input_queue.put(None)  # Signal workers to exit
-
-        # Retrieve results from the output queue
-        for _ in range(iterations + 1):
-            res = output_queue.get()
-            total_hwperf.append(res)
-
-        # Wait for all worker processes to finish
-        for p in processes:
-            p.join()
-
-        return total_hwperf
-    
-    def tensorrt_benchmark(self, iterations, dev_type, passwd):
-        from polygraphy.backend.common import BytesFromPath
-        from polygraphy.backend.trt import EngineFromBytes, TrtRunner
-        from polygraphy.logger import G_LOGGER
-        G_LOGGER.module_severity = 50
-        load_engine = EngineFromBytes(BytesFromPath(self._graph_path))
-        with TrtRunner(load_engine) as runner:
-            input_metadata = runner.get_input_metadata()
-            img = Image.open(self._img).resize((224, 224))
-            frame = np.array(img, dtype=input_metadata["input_1"].dtype) / 255.0
-            input_data = np.expand_dims(frame, axis=0).astype(input_metadata["input_1"].dtype)
-
-            def inference_worker(input_queue, output_queue):
-                hwperfs = {'Task Time':[], 'Num. of Tasks':[], 'Output':[]}
-                con_start = timer()
-                while True:
-                    input_data = input_queue.get()
-                    if input_data is None:
-                        break
-                    hwperf = []
+                for _ in np.arange(self._iterations+1):
                     runner.activate()
-                    self._jstat_start(passwd)
+                    self.hwfunc.jstat_start(self._passwd)
                     cpu = CPU()
                     gmem = GPUMem()
                     cpu.start()
@@ -329,8 +299,8 @@ class GetLatency:
                     runner.infer(feed_dict={'input_1': input_data})
 
                     # retrieve the results
-                    mem_res = self._process_memory()
-                    gpu, power, gpu_freq, power_cpu, power_gpu = self._jstat_stop(dev_type, passwd)[0:5]
+                    mem_res = self.hwfunc.process_memory()
+                    gpu, power, gpu_freq, power_cpu, power_gpu = self.hwfunc.jstat_stop(self._dev_type, self._passwd)[0:5]
                     elapsed = runner.inference_time * 1000
                     if elapsed < 1000:
                         time.sleep((2000-elapsed)/1000)
@@ -341,75 +311,59 @@ class GetLatency:
                     gmem.join()
                     cpu_percent = float(cpu.result[0])
                     gpu_mem = float(gmem.result[0])
-
-                    hwperf.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), round(float(cpu_freq), 2), round(float(gpu_freq), 2)])
+                    with threading.Lock:
+                        self._list.append([round(elapsed, 2), round(cpu_percent, 2), [round(mem_res.rss/1024**2, 2), round(mem_res.swap/1024**2, 2)], round(gpu, 2), round(power, 2), round(power_cpu, 2), round(power_gpu, 2), round(gpu_mem, 2), round(float(cpu_freq), 2), round(float(gpu_freq), 2)])
                     runner.deactivate()
                     subprocess.check_output(f'rm tegrastats_{os.getpid()}.txt', shell=True)
                     # clear cache
-                    self._clear_cache(passwd)
-
-                con_time = ((timer()- con_start) * 1000)
-                hwperfs["Task Time"].append(con_time)
-                hwperfs["Output"].append(hwperf)
-                hwperfs["Num. of Tasks"].append(len(hwperf))
-                output_queue.put(hwperfs)
-            
-            # Initialize queues for communication between main process and worker processes
-            input_queue = multiprocessing.Queue()
-            output_queue = multiprocessing.Queue()
-
-            # Create and start worker processes
-            num_processes = psutil.cpu_count()
-            processes = []
-
-            for _ in range(num_processes):
-                p = multiprocessing.Process(target=inference_worker, args=(input_queue, output_queue))
-                p.start()
-                processes.append(p)
-            
-            total_hwperf = []
-
-            # Push input data to the input queue
-            for _ in range(iterations + 1):
-                input_queue.put(input_data)
-
-            for _ in range(num_processes):
-                input_queue.put(None)  # Signal workers to exit
-
-            # Retrieve results from the output queue
-            for _ in range(iterations + 1):
-                res = output_queue.get()
-                total_hwperf.append(res)
-
-            # Wait for all worker processes to finish
-            for p in processes:
-                p.join()
-
-            return total_hwperf
-
-def check_ina219():
-    try:
-        import ina219
-        ina = ina219.INA219(0.1)
-        voltage = ina.voltage()
-        # If the script reaches here without errors, the INA219 is connected
-        return True
-    except:
-        return False
+                    self.hwfunc.clear_cache(self._passwd)
+            self.result = self._list
+        except:
+            self.result = self._list
 
 ### RUN CODE FUNC ###
         
-def main_tflite(model : str, iterations : int, dev_type : str, threads, passwd : str):
-    setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    hwperf = setup.tflite_benchmark(iterations, dev_type, threads, passwd)
-
-    return hwperf
-
-def main_tensorrt(model : str, iterations : int, dev_type : str, passwd : str):
-    setup = GetLatency(graph_path=model, img='dlperf_meter/assets/flower.jpg')
-    hwperf = setup.tensorrt_benchmark(iterations, dev_type, passwd)
+def main_tflite(model : str, iterations : int, dev_type : str, threads, passwd : str, concurrent : int):
+    apps = []
+    res = []
+    hwperfs = {'Task Time':[], 'The Num. of Task':[], 'Output':[]}
+    con_start = timer()
+    for _ in np.arange(concurrent):
+        setup = LatencyCPU(model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, threads, passwd)
+        setup.start()
+        apps.append(setup)
     
-    return hwperf
+    for app in apps:
+        app.join()
+        res.append(app.result)
+    
+    con_time = ((timer()- con_start) * 1000)
+    hwperfs["Task Time"].append(con_time)
+    hwperfs["Output"].append(res)
+    hwperfs["The Num. of Task"].append(len(res))
+    
+    return hwperfs
+
+def main_tensorrt(model : str, iterations : int, dev_type : str, passwd : str, concurrent: int):
+    apps = []
+    res = []
+    hwperfs = {'Task Time':[], 'The Num. of Task':[], 'Output':[]}
+    con_start = timer()
+    for _ in np.arange(concurrent):
+        setup = LatencyGPU(model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, passwd)
+        setup.start()
+        apps.append(setup)
+    
+    for app in apps:
+        app.join()
+        res.append(app.result)
+    
+    con_time = ((timer()- con_start) * 1000)
+    hwperfs["Task Time"].append(con_time)
+    hwperfs["Output"].append(res)
+    hwperfs["The Num. of Task"].append(len(res))
+    
+    return hwperfs
 
 if __name__ == '__main__':
     import argparse
@@ -420,14 +374,15 @@ if __name__ == '__main__':
     parser.add_argument('--type', help='device types', required=True)
     parser.add_argument('--threads', help='num_threads (just for tflite)', default=None)
     parser.add_argument('--iterations', help='how many model runs (auto add warmup once)', default=1)
+    parser.add_argument('--concurrent', help='running dl model by concurrency', default=1)
     config = configparser.ConfigParser()
     config.read("._config.ini")
     _passwd = config.get("Credentials", "password", raw=True)
     args = parser.parse_args()
     
     if 'cpu' in args.type:
-        data = main_tflite(args.model, int(args.iterations), args.type, (int(args.threads) if isinstance(args.threads, int) else None), _passwd)
+        data = main_tflite(args.model, int(args.iterations), args.type, (int(args.threads) if isinstance(args.threads, int) else None), _passwd, args.concurrent)
     elif 'gpu' in args.type:
-        data = main_tensorrt(args.model, int(args.iterations), args.type, _passwd)
+        data = main_tensorrt(args.model, int(args.iterations), args.type, _passwd, args.concurrent)
     
     print(data)
