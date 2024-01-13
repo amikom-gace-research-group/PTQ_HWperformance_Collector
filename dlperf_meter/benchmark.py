@@ -326,7 +326,7 @@ class LatencyGPU(threading.Thread):
 def main_tflite(model : str, iterations : int, dev_type : str, threads, passwd : str, concurrent : int):
     apps = []
     res = []
-    hwperfs = {'Task Time':[], 'The Num. of Task':[], 'Output':[]}
+    hwperfs = {'Task Time':[], 'Num. of Tasks':[], 'Output':[]}
     con_start = timer()
     for _ in np.arange(concurrent):
         setup = LatencyCPU(model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, threads, passwd)
@@ -340,14 +340,14 @@ def main_tflite(model : str, iterations : int, dev_type : str, threads, passwd :
     con_time = ((timer()- con_start) * 1000)
     hwperfs["Task Time"].append(con_time)
     hwperfs["Output"].append(res)
-    hwperfs["The Num. of Task"].append(len(res))
+    hwperfs["Num. of Tasks"].append(len(res))
     
     return hwperfs
 
 def main_tensorrt(model : str, iterations : int, dev_type : str, passwd : str, concurrent: int):
     apps = []
     res = []
-    hwperfs = {'Task Time':[], 'The Num. of Task':[], 'Output':[]}
+    hwperfs = {'Task Time':[], 'Num. of Tasks':[], 'Output':[]}
     con_start = timer()
     for _ in np.arange(concurrent):
         setup = LatencyGPU(model, 'dlperf_meter/assets/flower.jpg', iterations, dev_type, passwd)
@@ -361,7 +361,7 @@ def main_tensorrt(model : str, iterations : int, dev_type : str, passwd : str, c
     con_time = ((timer()- con_start) * 1000)
     hwperfs["Task Time"].append(con_time)
     hwperfs["Output"].append(res)
-    hwperfs["The Num. of Task"].append(len(res))
+    hwperfs["Num. of Tasks"].append(len(res))
     
     return hwperfs
 
@@ -374,7 +374,7 @@ if __name__ == '__main__':
     parser.add_argument('--type', help='device types', required=True)
     parser.add_argument('--threads', help='num_threads (just for tflite)', default=None)
     parser.add_argument('--iterations', help='how many model runs (auto add warmup once)', default=1)
-    parser.add_argument('--concurrent', help='running dl model by concurrency', default=1)
+    parser.add_argument('--concurrent', help='running dl model by concurrency', default=1, type=int)
     config = configparser.ConfigParser()
     config.read("._config.ini")
     _passwd = config.get("Credentials", "password", raw=True)
