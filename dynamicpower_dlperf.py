@@ -11,7 +11,7 @@ from dlperf_meter.benchmark import HWFUNC
 
 check_ina219 = HWFUNC().check_ina219
 
-def run(passwd : str, model_path : str, dev_type : str, threads, iterations : int):
+def run(passwd : str, model_path : str, dev_type : str, threads, iterations : int, concurrent : int):
     model_name = os.path.basename(model_path)
     print("Model : ", model_name)
     if 'gpu' in dev_type:
@@ -24,7 +24,8 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
     "sudo", "-S", "python3", "dlperf_meter/benchmark.py",
     "--model", model_path,
     "--type", dev_type,
-    "--iterations", str(iterations)
+    "--iterations", str(iterations),
+    "--concurrent", int(concurrent)
     ]
     # Include threads in the command if it's not None
     if threads is not None:
@@ -120,7 +121,7 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
         else: df.to_csv(output_path)
         print('='*25)
 
-def main(passwd : str, model_path : str, dev_type: str, threads, iterations : int):
+def main(passwd : str, model_path : str, dev_type: str, threads, iterations : int, concurrent : int):
     if '5.10.104-tegra' == uname().release:
         for id in np.arange(0, 9):
             for clk in [True, False]:
@@ -128,7 +129,7 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                     j_mode(int(id), clk)
                     time.sleep(10)
                     try:
-                        run(passwd, model_path, dev_type, threads, iterations)
+                        run(passwd, model_path, dev_type, threads, iterations, concurrent)
                         clear_cache(passwd)
                     except Exception as e:
                         logging.exception(f"Exception occurred, error {e}")
@@ -141,7 +142,7 @@ def main(passwd : str, model_path : str, dev_type: str, threads, iterations : in
                     j_mode(int(id), clk)
                     time.sleep(10)
                     try:
-                        run(passwd, model_path, dev_type, threads, iterations)
+                        run(passwd, model_path, dev_type, threads, iterations, concurrent)
                         clear_cache(passwd)
                     except Exception as e:
                         logging.exception(f"Exception occurred, error {e}")
@@ -190,9 +191,10 @@ if __name__ == '__main__':
     parser.add_argument('--dev_type', help='device type | see in yaml file list', required=True)
     parser.add_argument('--threads', help='num_threads (just for tflite)', default=None)
     parser.add_argument('--iterations', help='how many model runs (not including warm-up)', required=True)
+    parser.add_argument('--concurrent', help='running dl model by concurrency', default=1, type=int)
     config = configparser.ConfigParser()
     config.read("._config.ini")
     _passwd = config.get("Credentials", "password", raw=True)
     args = parser.parse_args()
     logging.basicConfig(filename=f'errorlog.log', filemode='w')
-    main(_passwd, args.model_path, args.dev_type, (int(args.threads) if isinstance(args.threads, int) else None), int(args.iterations))
+    main(_passwd, args.model_path, args.dev_type, (int(args.threads) if isinstance(args.threads, int) else None), int(args.iterations), args.concurrent)
