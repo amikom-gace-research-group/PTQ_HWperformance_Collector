@@ -25,7 +25,7 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
     "--model", model_path,
     "--type", dev_type,
     "--iterations", str(iterations),
-    "--concurrent", int(concurrent)
+    "--concurrent", str(concurrent)
     ]
     # Include threads in the command if it's not None
     if threads is not None:
