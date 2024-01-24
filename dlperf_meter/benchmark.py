@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 import psutil
 import subprocess
@@ -385,6 +386,7 @@ def run_multiprocessing(num_threads, model, iterations, dev_type, threads, passw
             results = [completed_future.result() for completed_future in deadline.done]
         except concurrent.futures.TimeoutError:
             print(f"Timeout, {model} task concurrency level {num_threads} is too long (+30 minutes)")
+            sys.exit(0)
     elapsed = (timer() - start) * 1000
     mem_res = mes._process_memory().rss/1024**2
     gpu, power, gpu_freq, power_cpu, power_gpu = mes._jstat_stop(passwd=passwd, dev_type=dev_type)

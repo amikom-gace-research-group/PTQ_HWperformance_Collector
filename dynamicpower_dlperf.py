@@ -1,5 +1,6 @@
 import os
 import ast
+import sys
 import pandas as pd
 import numpy as np
 import time
@@ -31,6 +32,8 @@ def run(passwd : str, model_path : str, dev_type : str, threads, iterations : in
     if threads is not None:
         benchmark_command.extend(["--threads", threads])
     cmd = subprocess.run(benchmark_command, input=passwd, stdout=subprocess.PIPE, universal_newlines=True).stdout
+    if 'Timeout' in cmd:
+        sys.exit(0)
     data = ast.literal_eval(cmd)
     print(f"Task Time : {data['Task Time']}\nNum. of Tasks : {data['Num. of Tasks']}")
     for n_task, datum in enumerate(data['Output']):
