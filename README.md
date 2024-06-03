@@ -1,6 +1,6 @@
-# DL Performance Collector
+# PTQ HW Performance Collector
 
-Collecting Latency, Memory RSS, PSS, USS, and CPU as well as the power comsumption while deep learning infer the input. GPU is included for Jetson Devices
+Collecting Latency, Memory RSS, PSS, USS, and CPU as well as the power comsumption while post-quantization deep learning infer the input. GPU is included for Jetson Devices
 (Still in Dev Mode)
 
 ## DL Application Properties
