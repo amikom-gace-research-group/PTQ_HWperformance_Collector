@@ -4,5 +4,5 @@ Pillow
 psutil==5.8
 PyYAML
 silence-tensorflow
-tensorflow==2.12
+tensorflow==2.12.1
 pi-ina219
